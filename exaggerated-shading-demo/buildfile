@@ -1,0 +1,11 @@
+import libs = \
+  libsfml-graphics%lib{sfml-graphics} \
+  glbinding%lib{glbinding} \
+  glm%lib{glm}
+
+exe{exaggerated-shading-demo}: {hxx ixx txx cxx}{**} $libs
+{
+  test.arguments = /home/lyrahgames/projects/sgp2024/data/Engine.stl
+}
+
+cxx.poptions =+ "-I$out_root" "-I$src_root"

@@ -50,36 +50,14 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, normal));
 
-  czstring vertex_shader_src = R"##(
-#version 460 core
-
-uniform mat4 projection;
-uniform mat4 view;
-
-layout (location = 0) in vec3 p;
-layout (location = 1) in vec3 n;
-
-out vec3 normal;
-
-void main() {
-  gl_Position = projection * view * vec4(p, 1.0);
-  // normal = vec3(transpose(inverse(view)) * vec4(n, 0.0));
-  normal = vec3(view * vec4(n, 0.0));
-}
-)##";
-  czstring fragment_shader_src = R"##(
-#version 460 core
-
-in vec3 normal;
-
-layout (location = 0) out vec4 frag_color;
-
-void main() {
-  float s = abs(normalize(normal).z);
-  float light = 0.2 + 1.0 * pow(s, 1000) + 0.75 * pow(s, 0.2);
-  frag_color = vec4(vec3(light), 1.0);
-}
-)##";
+  czstring vertex_shader_src = (const char[]){
+#embed "vs.glsl" suffix(, )
+      0,
+  };
+  czstring fragment_shader_src = (const char[]){
+#embed "fs.glsl" suffix(, )
+      0,
+  };
   GLint src_size = -1;
   auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(vertex_shader, 1, &vertex_shader_src, &src_size);

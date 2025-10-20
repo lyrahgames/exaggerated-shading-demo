@@ -13,13 +13,14 @@ opengl_window::opengl_window(uint width, uint height)
              sf::State::Windowed,
              sf::ContextSettings{
                  /*.depthBits = */ 24,
-                 /*.stencilBits = */ 0,
-                 /*.antialiasingLevel = */ 2,
+                 /*.stencilBits = */ 8,
+                 /*.antialiasingLevel = */ 4,
                  /*.majorVersion = */ 4,
                  /*.minorVersion = */ 6,
                  /*.attributeFlags = */
                  sf::ContextSettings::Core /*| sf::ContextSettings::Debug*/,
                  /*.sRgbCapable = */ false}) {
+  // window.setActive(true);
   glbinding::initialize(sf::Context::getFunction);
   window.setVerticalSyncEnabled(true);
   window.setKeyRepeatEnabled(false);
@@ -49,7 +50,7 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, normal));
 
-  czstring vertex_shader_src = R""(
+  czstring vertex_shader_src = R"##(
 #version 460 core
 
 uniform mat4 projection;
@@ -60,24 +61,25 @@ layout (location = 1) in vec3 n;
 
 out vec3 normal;
 
-int main() {
+void main() {
   gl_Position = projection * view * vec4(p, 1.0);
-  normal = vec3(transpose(inverse(view)) * vec4(n, 0.0));
+  // normal = vec3(transpose(inverse(view)) * vec4(n, 0.0));
+  normal = vec3(view * vec4(n, 0.0));
 }
-)"";
-  czstring fragment_shader_src = R""(
+)##";
+  czstring fragment_shader_src = R"##(
 #version 460 core
 
 in vec3 normal;
 
 layout (location = 0) out vec4 frag_color;
 
-int main() {
+void main() {
   float s = abs(normalize(normal).z);
   float light = 0.2 + 1.0 * pow(s, 1000) + 0.75 * pow(s, 0.2);
   frag_color = vec4(vec3(light), 1.0);
 }
-)"";
+)##";
   GLint src_size = -1;
   auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(vertex_shader, 1, &vertex_shader_src, &src_size);
@@ -108,7 +110,11 @@ void viewer::run() {
         done = true;
       else if (const auto* resized = event->getIf<sf::Event::Resized>())
         on_resize(resized->size.x, resized->size.y);
-      else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+      else if (const auto* scrolled =
+                   event->getIf<sf::Event::MouseWheelScrolled>()) {
+        zoom(0.1 * scrolled->delta);
+      } else if (const auto* keyPressed =
+                     event->getIf<sf::Event::KeyPressed>()) {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
       }
     }
@@ -128,6 +134,7 @@ void viewer::run() {
           turn({-0.01 * mouse_move.x, 0.01 * mouse_move.y});
       }
     }
+
     if (view_should_update) update_view();
 
     render();
@@ -173,16 +180,12 @@ void viewer::update_view() {
   glProgramUniformMatrix4fv(shader, glGetUniformLocation(shader, "view"), 1,
                             GL_FALSE, value_ptr(camera.view_matrix()));
 
-  println("radius = {}", radius);
-
   view_should_update = false;
 }
 
 void viewer::load_stl_surface(const filesystem::path& path) {
   scene = scene_from(stl_surface{path});
   fit_view_to_surface();
-
-  println("#vertices = {}", scene.vertices.size());
 
   glNamedBufferData(vertex_buffer,
                     scene.vertices.size() * sizeof(scene::vertex),
@@ -193,9 +196,6 @@ void viewer::fit_view_to_surface() {
   const auto box = aabb_from(scene);
   origin = box.origin();
   bounding_radius = box.radius();
-
-  println("bounding radius = {}", bounding_radius);
-
   radius = bounding_radius / tan(0.5f * camera.vfov());
   camera.set_near_and_far(1e-5f * radius, 100 * radius);
   view_should_update = true;

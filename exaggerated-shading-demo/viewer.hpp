@@ -8,7 +8,7 @@
 namespace demo {
 
 struct opengl_window {
-  sf::RenderWindow window{};
+  sf::Window window{};
   opengl_window(uint width, uint height);
 };
 

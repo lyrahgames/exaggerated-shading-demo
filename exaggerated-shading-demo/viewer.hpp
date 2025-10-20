@@ -15,6 +15,8 @@ struct opengl_window {
 class viewer : public opengl_window {
   bool done = false;
 
+  sf::Vector2i mouse_pos{};
+
   // World Origin
   vec3 origin;
   // Basis Vectors of Right-Handed Coordinate System
@@ -27,6 +29,9 @@ class viewer : public opengl_window {
   float azimuth = 0;
   // Perspective camera
   struct camera camera{};
+
+  float bounding_radius = 1.0f;
+  bool view_should_update = true;
 
   struct scene scene{};
 
@@ -41,9 +46,16 @@ class viewer : public opengl_window {
   void run();
 
   void load_stl_surface(const filesystem::path& path);
+  void fit_view_to_surface();
+
+  void turn(const vec2& angle);
+  void shift(const vec2& pixels);
+  void zoom(float scale);
 
  protected:
   void render();
+  void on_resize(int width, int height);
+  void update_view();
 };
 
 }  // namespace demo

@@ -1,6 +1,8 @@
 #include "viewer.hpp"
 //
 #include <glbinding/glbinding.h>
+//
+#include "aabb.hpp"
 
 namespace demo {
 
@@ -56,18 +58,16 @@ uniform mat4 view;
 layout (location = 0) in vec3 p;
 layout (location = 1) in vec3 n;
 
-out vec3 position;
 out vec3 normal;
 
 int main() {
-  position = vec3(view * vec4(p, 1.0));
+  gl_Position = projection * view * vec4(p, 1.0);
   normal = vec3(transpose(inverse(view)) * vec4(n, 0.0));
 }
 )"";
   czstring fragment_shader_src = R""(
 #version 460 core
 
-in vec3 position;
 in vec3 normal;
 
 layout (location = 0) out vec4 frag_color;
@@ -106,10 +106,29 @@ void viewer::run() {
     while (const auto event = window.pollEvent()) {
       if (event->is<sf::Event::Closed>())
         done = true;
+      else if (const auto* resized = event->getIf<sf::Event::Resized>())
+        on_resize(resized->size.x, resized->size.y);
       else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
       }
     }
+
+    // Get new mouse position and compute movement in space.
+    const auto new_mouse_pos = sf::Mouse::getPosition(window);
+    const auto mouse_move = new_mouse_pos - mouse_pos;
+    mouse_pos = new_mouse_pos;
+
+    if (window.hasFocus()) {
+      if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift))
+          shift({mouse_move.x, mouse_move.y});
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl))
+          zoom(0.01 * mouse_move.y);
+        else
+          turn({-0.01 * mouse_move.x, 0.01 * mouse_move.y});
+      }
+    }
+    if (view_should_update) update_view();
 
     render();
     window.display();
@@ -124,12 +143,82 @@ void viewer::render() {
   glDrawArrays(GL_TRIANGLES, 0, scene.vertices.size());
 }
 
+void viewer::on_resize(int width, int height) {
+  glViewport(0, 0, width, height);
+  camera.set_screen_resolution(width, height);
+  view_should_update = true;
+}
+
+void viewer::update_view() {
+  // Compute camera position by using spherical coordinates.
+  // This transformation is a variation of the standard
+  // called horizontal coordinates often used in astronomy.
+  //
+  auto p = cos(altitude) * sin(azimuth) * right +  //
+           cos(altitude) * cos(azimuth) * front +  //
+           sin(altitude) * up;
+  p *= radius;
+  p += origin;
+  camera.move(p).look_at(origin, up);
+
+  // camera.set_near_and_far(std::max(1e-3f * radius, radius - bounding_radius),
+  //                         radius + bounding_radius);
+
+  camera.set_near_and_far(
+      std::max(1e-3f * bounding_radius, radius - 10.0f * bounding_radius),
+      radius + 10.0f * bounding_radius);
+
+  glProgramUniformMatrix4fv(shader, glGetUniformLocation(shader, "projection"),
+                            1, GL_FALSE, value_ptr(camera.projection_matrix()));
+  glProgramUniformMatrix4fv(shader, glGetUniformLocation(shader, "view"), 1,
+                            GL_FALSE, value_ptr(camera.view_matrix()));
+
+  println("radius = {}", radius);
+
+  view_should_update = false;
+}
+
 void viewer::load_stl_surface(const filesystem::path& path) {
   scene = scene_from(stl_surface{path});
+  fit_view_to_surface();
+
+  println("#vertices = {}", scene.vertices.size());
 
   glNamedBufferData(vertex_buffer,
                     scene.vertices.size() * sizeof(scene::vertex),
                     scene.vertices.data(), GL_STATIC_DRAW);
+}
+
+void viewer::fit_view_to_surface() {
+  const auto box = aabb_from(scene);
+  origin = box.origin();
+  bounding_radius = box.radius();
+
+  println("bounding radius = {}", bounding_radius);
+
+  radius = bounding_radius / tan(0.5f * camera.vfov());
+  camera.set_near_and_far(1e-5f * radius, 100 * radius);
+  view_should_update = true;
+}
+
+void viewer::turn(const vec2& angle) {
+  altitude += angle.y;
+  azimuth += angle.x;
+  constexpr float bound = pi / 2 - 1e-5f;
+  altitude = std::clamp(altitude, -bound, bound);
+  view_should_update = true;
+}
+
+void viewer::shift(const vec2& pixels) {
+  const auto shift = -pixels.x * camera.right() + pixels.y * camera.up();
+  const auto scale = camera.pixel_size() * radius;
+  origin += scale * shift;
+  view_should_update = true;
+}
+
+void viewer::zoom(float scale) {
+  radius *= exp(-scale);
+  view_should_update = true;
 }
 
 }  // namespace demo

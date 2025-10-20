@@ -5,7 +5,7 @@ import libs = \
 
 exe{exaggerated-shading-demo}: {hxx ixx txx cxx}{**} $libs
 {
-  test.arguments = /home/lyrahgames/projects/sgp2024/data/Engine.stl
+  test.arguments = /home/lyrahgames/Downloads/Thingi10K/raw_meshes/100026.stl
 }
 
 cxx.poptions =+ "-I$out_root" "-I$src_root"

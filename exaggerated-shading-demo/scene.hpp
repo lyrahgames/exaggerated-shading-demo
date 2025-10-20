@@ -1,4 +1,5 @@
 #pragma once
+#include "aabb.hpp"
 #include "stl_surface.hpp"
 
 namespace demo {
@@ -21,6 +22,12 @@ inline auto scene_from(const stl_surface& stl) -> scene {
     s.vertices.emplace_back(t.vertex[2], t.normal);
   }
   return s;
+}
+
+inline auto aabb_from(const scene& s) noexcept -> aabb3 {
+  aabb3 result{};
+  for (const auto& v : s.vertices) result = aabb{result, v.position};
+  return result;
 }
 
 }  // namespace demo

@@ -35,7 +35,7 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glPointSize(10.0f);
   glLineWidth(0.5f);
-  glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+  glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
   //
   glGenVertexArrays(1, &vertex_array);
@@ -157,6 +157,10 @@ void viewer::update_view() {
                             1, GL_FALSE, value_ptr(camera.projection_matrix()));
   glProgramUniformMatrix4fv(shader, glGetUniformLocation(shader, "view"), 1,
                             GL_FALSE, value_ptr(camera.view_matrix()));
+
+  // const auto light = -camera.front() - camera.up() + camera.right();
+  // glProgramUniform3f(shader, glGetUniformLocation(shader, "light"),  //
+  //                    light.x, light.y, light.z);
 
   view_should_update = false;
 }

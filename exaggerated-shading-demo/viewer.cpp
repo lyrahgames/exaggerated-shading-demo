@@ -49,6 +49,13 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, normal));
+  //
+  glCreateBuffers(1, &element_buffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
+  //
+  glCreateBuffers(1, &normals_buffer);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, normals_buffer);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, normals_buffer);
 
   czstring vertex_shader_src = (const char[]){
 #embed "vs.glsl" suffix(, )
@@ -77,6 +84,7 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 
 viewer::~viewer() {
   glDeleteProgram(shader);
+  glDeleteBuffers(1, &element_buffer);
   glDeleteBuffers(1, &vertex_buffer);
   glDeleteVertexArrays(1, &vertex_array);
 }
@@ -94,6 +102,11 @@ void viewer::run() {
       } else if (const auto* keyPressed =
                      event->getIf<sf::Event::KeyPressed>()) {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
+        if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
+          scale = (scale + 1) % scales;
+          glProgramUniform1ui(shader, glGetUniformLocation(shader, "scale"),
+                              scale);
+        }
       }
     }
 
@@ -124,8 +137,9 @@ void viewer::render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glBindVertexArray(vertex_array);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
   glUseProgram(shader);
-  glDrawArrays(GL_TRIANGLES, 0, scene.vertices.size());
+  glDrawElements(GL_TRIANGLES, 3 * scene.faces.size(), GL_UNSIGNED_INT, 0);
 }
 
 void viewer::on_resize(int width, int height) {
@@ -165,13 +179,25 @@ void viewer::update_view() {
   view_should_update = false;
 }
 
-void viewer::load_stl_surface(const filesystem::path& path) {
-  scene = scene_from(stl_surface{path});
+void viewer::load_scene(const filesystem::path& path) {
+  scene = scene_from(path);
+  scene.generate_edges();
+  scene.smooth_normals(scales);
+
   fit_view_to_surface();
 
   glNamedBufferData(vertex_buffer,
                     scene.vertices.size() * sizeof(scene::vertex),
                     scene.vertices.data(), GL_STATIC_DRAW);
+  glNamedBufferData(element_buffer, scene.faces.size() * sizeof(scene::face),
+                    scene.faces.data(), GL_STATIC_DRAW);
+  glNamedBufferData(
+      normals_buffer,
+      scene.smoothed_normals.size() * sizeof(scene.smoothed_normals[0]),
+      scene.smoothed_normals.data(), GL_STATIC_DRAW);
+  glProgramUniform1ui(shader, glGetUniformLocation(shader, "scales"), scales);
+  glProgramUniform1ui(shader, glGetUniformLocation(shader, "count"),
+                      scene.vertices.size());
 }
 
 void viewer::fit_view_to_surface() {

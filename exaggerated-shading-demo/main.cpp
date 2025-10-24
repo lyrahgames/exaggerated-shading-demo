@@ -3,7 +3,7 @@
 int main(int argc, char* argv[]) {
   demo::viewer viewer{};
 
-  if (argc > 1) viewer.load_stl_surface(argv[1]);
+  if (argc > 1) viewer.load_scene(argv[1]);
 
   viewer.run();
 }

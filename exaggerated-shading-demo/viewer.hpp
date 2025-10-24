@@ -34,9 +34,13 @@ class viewer : public opengl_window {
   bool view_should_update = true;
 
   struct scene scene{};
+  size_t scales = 10;
+  uint32 scale = 0;
 
   GLuint vertex_array{};
   GLuint vertex_buffer{};
+  GLuint element_buffer{};
+  GLuint normals_buffer{};
   GLuint shader{};
 
  public:
@@ -45,7 +49,7 @@ class viewer : public opengl_window {
 
   void run();
 
-  void load_stl_surface(const filesystem::path& path);
+  void load_scene(const filesystem::path& path);
   void fit_view_to_surface();
 
   void turn(const vec2& angle);

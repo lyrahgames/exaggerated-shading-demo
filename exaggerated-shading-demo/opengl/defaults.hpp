@@ -1,7 +1,10 @@
 #pragma once
 #include <array>
+#include <concepts>
+#include <cstdint>
 #include <filesystem>
 #include <print>
+#include <ranges>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -24,6 +27,25 @@ namespace demo::opengl {
 using namespace std;
 using namespace gl;
 using namespace glm;
+
+using int8 = int8_t;
+using int16 = int16_t;
+using int32 = int32_t;
+using int64 = int64_t;
+
+using uint8 = uint8_t;
+using uint16 = uint16_t;
+using uint32 = uint32_t;
+using uint64 = uint64_t;
+
+using uint = GLuint;
+using size_type = GLsizeiptr;
+using ptrdiff_type = int32_t;
+
+using float32 = float;
+using float64 = double;
+
+using real = float32;  // default float type
 
 using czstring = const char*;
 
@@ -215,5 +237,10 @@ constexpr auto forward(std::remove_reference_t<type>& value) noexcept
     -> type&& {
   return static_cast<type&&>(value);
 }
+
+///
+///
+template <typename type>
+concept transferable = std::regular<type> && std::is_trivially_copyable_v<type>;
 
 }  // namespace demo::opengl

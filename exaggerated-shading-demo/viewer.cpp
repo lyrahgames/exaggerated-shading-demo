@@ -38,16 +38,15 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
   vertex_array.bind();
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.native_handle());
+  vertex_buffer.bind(GL_ARRAY_BUFFER);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, position));
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, normal));
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer.native_handle());
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, normals_buffer.native_handle());
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, normals_buffer.native_handle());
+  element_buffer.bind(GL_ELEMENT_ARRAY_BUFFER);
+  normals_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
   czstring vertex_shader_src = (const char[]){
 #embed "vs.glsl" suffix(, )
@@ -61,6 +60,7 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
                                    opengl::fs(fragment_shader_src));
   status.print();
   if (not status.success) done = true;
+  shader.use();
 }
 
 void viewer::run() {
@@ -110,11 +110,6 @@ void viewer::run() {
 
 void viewer::render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  glBindVertexArray(vertex_array.native_handle());
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer.native_handle());
-  // glUseProgram(shader);
-  shader.use();
   glDrawElements(GL_TRIANGLES, 3 * scene.faces.size(), GL_UNSIGNED_INT, 0);
 }
 
@@ -156,16 +151,9 @@ void viewer::load_scene(const filesystem::path& path) {
 
   fit_view_to_surface();
 
-  glNamedBufferData(vertex_buffer.native_handle(),
-                    scene.vertices.size() * sizeof(scene::vertex),
-                    scene.vertices.data(), GL_STATIC_DRAW);
-  glNamedBufferData(element_buffer.native_handle(),
-                    scene.faces.size() * sizeof(scene::face),
-                    scene.faces.data(), GL_STATIC_DRAW);
-  glNamedBufferData(
-      normals_buffer.native_handle(),
-      scene.smoothed_normals.size() * sizeof(scene.smoothed_normals[0]),
-      scene.smoothed_normals.data(), GL_STATIC_DRAW);
+  vertex_buffer.alloc_and_init(scene.vertices);
+  element_buffer.alloc_and_init(scene.faces);
+  normals_buffer.alloc_and_init(scene.smoothed_normals);
 
   shader.set("scales", (uint32)scales);
   shader.set("count", (uint32)scene.vertices.size());

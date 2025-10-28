@@ -2,6 +2,7 @@ import libs = \
   libsfml-graphics%lib{sfml-graphics} \
   glbinding%lib{glbinding} \
   glm%lib{glm} \
+  cpptrace%lib{cpptrace} \
   assimp%lib{assimp}
 
 define glsl: file

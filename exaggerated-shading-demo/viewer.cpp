@@ -37,25 +37,17 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glLineWidth(0.5f);
   glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
-  //
-  glGenVertexArrays(1, &vertex_array);
-  glBindVertexArray(vertex_array);
-  //
-  glCreateBuffers(1, &vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+  vertex_array.bind();
+  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.native_handle());
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, position));
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
                         (void*)offsetof(scene::vertex, normal));
-  //
-  glCreateBuffers(1, &element_buffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
-  //
-  glCreateBuffers(1, &normals_buffer);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, normals_buffer);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, normals_buffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer.native_handle());
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, normals_buffer.native_handle());
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, normals_buffer.native_handle());
 
   czstring vertex_shader_src = (const char[]){
 #embed "vs.glsl" suffix(, )
@@ -65,28 +57,10 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 #embed "fs.glsl" suffix(, )
       0,
   };
-  GLint src_size = -1;
-  auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertex_shader, 1, &vertex_shader_src, &src_size);
-  glCompileShader(vertex_shader);
-  auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragment_shader, 1, &fragment_shader_src, &src_size);
-  glCompileShader(fragment_shader);
-  shader = glCreateProgram();
-  glAttachShader(shader, vertex_shader);
-  glAttachShader(shader, fragment_shader);
-  glLinkProgram(shader);
-  glDetachShader(shader, fragment_shader);
-  glDetachShader(shader, vertex_shader);
-  glDeleteShader(fragment_shader);
-  glDeleteShader(vertex_shader);
-}
-
-viewer::~viewer() {
-  glDeleteProgram(shader);
-  glDeleteBuffers(1, &element_buffer);
-  glDeleteBuffers(1, &vertex_buffer);
-  glDeleteVertexArrays(1, &vertex_array);
+  const auto status = shader.build(opengl::vs(vertex_shader_src),
+                                   opengl::fs(fragment_shader_src));
+  status.print();
+  if (not status.success) done = true;
 }
 
 void viewer::run() {
@@ -104,8 +78,9 @@ void viewer::run() {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
         if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
           scale = (scale + 1) % scales;
-          glProgramUniform1ui(shader, glGetUniformLocation(shader, "scale"),
-                              scale);
+          // glProgramUniform1ui(shader, glGetUniformLocation(shader, "scale"),
+          //                     scale);
+          shader.set("scale", scale);
         }
       }
     }
@@ -136,9 +111,10 @@ void viewer::run() {
 void viewer::render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glBindVertexArray(vertex_array);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
-  glUseProgram(shader);
+  glBindVertexArray(vertex_array.native_handle());
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer.native_handle());
+  // glUseProgram(shader);
+  shader.use();
   glDrawElements(GL_TRIANGLES, 3 * scene.faces.size(), GL_UNSIGNED_INT, 0);
 }
 
@@ -167,14 +143,8 @@ void viewer::update_view() {
       std::max(1e-3f * bounding_radius, radius - 10.0f * bounding_radius),
       radius + 10.0f * bounding_radius);
 
-  glProgramUniformMatrix4fv(shader, glGetUniformLocation(shader, "projection"),
-                            1, GL_FALSE, value_ptr(camera.projection_matrix()));
-  glProgramUniformMatrix4fv(shader, glGetUniformLocation(shader, "view"), 1,
-                            GL_FALSE, value_ptr(camera.view_matrix()));
-
-  // const auto light = -camera.front() - camera.up() + camera.right();
-  // glProgramUniform3f(shader, glGetUniformLocation(shader, "light"),  //
-  //                    light.x, light.y, light.z);
+  shader.set("projection", camera.projection_matrix());
+  shader.set("view", camera.view_matrix());
 
   view_should_update = false;
 }
@@ -186,18 +156,19 @@ void viewer::load_scene(const filesystem::path& path) {
 
   fit_view_to_surface();
 
-  glNamedBufferData(vertex_buffer,
+  glNamedBufferData(vertex_buffer.native_handle(),
                     scene.vertices.size() * sizeof(scene::vertex),
                     scene.vertices.data(), GL_STATIC_DRAW);
-  glNamedBufferData(element_buffer, scene.faces.size() * sizeof(scene::face),
+  glNamedBufferData(element_buffer.native_handle(),
+                    scene.faces.size() * sizeof(scene::face),
                     scene.faces.data(), GL_STATIC_DRAW);
   glNamedBufferData(
-      normals_buffer,
+      normals_buffer.native_handle(),
       scene.smoothed_normals.size() * sizeof(scene.smoothed_normals[0]),
       scene.smoothed_normals.data(), GL_STATIC_DRAW);
-  glProgramUniform1ui(shader, glGetUniformLocation(shader, "scales"), scales);
-  glProgramUniform1ui(shader, glGetUniformLocation(shader, "count"),
-                      scene.vertices.size());
+
+  shader.set("scales", (uint32)scales);
+  shader.set("count", (uint32)scene.vertices.size());
 }
 
 void viewer::fit_view_to_surface() {

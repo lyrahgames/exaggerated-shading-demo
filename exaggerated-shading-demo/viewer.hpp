@@ -37,15 +37,14 @@ class viewer : public opengl_window {
   size_t scales = 10;
   uint32 scale = 0;
 
-  GLuint vertex_array{};
-  GLuint vertex_buffer{};
-  GLuint element_buffer{};
-  GLuint normals_buffer{};
-  GLuint shader{};
+  opengl::vertex_array vertex_array{};
+  opengl::buffer vertex_buffer{};
+  opengl::buffer element_buffer{};
+  opengl::buffer normals_buffer{};
+  opengl::program shader{};
 
  public:
   viewer(uint width = 500, uint height = 500);
-  virtual ~viewer();
 
   void run();
 

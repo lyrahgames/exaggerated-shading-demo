@@ -10,14 +10,7 @@
 #include <stdexcept>
 #include <vector>
 //
-#include <glbinding/gl/gl.h>
-//
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-//
-#include <glm/ext.hpp>
-//
-#include <glm/gtx/norm.hpp>
+#include "opengl/opengl.hpp"
 
 namespace demo {
 

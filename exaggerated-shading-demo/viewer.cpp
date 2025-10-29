@@ -48,13 +48,35 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   // std::cout << "offset of b = " << (b_addr - base_addr) << "\n";
   // std::cout << "offset of c = " << (c_addr - base_addr) << "\n";
 
+  // vertex_array.set_vertex_buffer(
+  //     0, vertex_buffer,
+  //     opengl::buffer_format{
+  //         // .offset = 0,
+  //         .stride = sizeof(scene::vertex),
+  //         .attributes = {
+  //             opengl::attr<vec3>(0, offsetof(scene::vertex, position)),
+  //             opengl::attr<vec3>(1, offsetof(scene::vertex, normal))}});
+
   vertex_array.set_vertex_buffer(
       0, vertex_buffer,
-      opengl::buffer_format{
-          // .offset = 0,
-          .stride = sizeof(scene::vertex),
-          .attributes = {opengl::attr<vec3>(offsetof(scene::vertex, position)),
-                         opengl::attr<vec3>(offsetof(scene::vertex, normal))}});
+      opengl::format<scene::vertex>(0, MEMBER(0, position), MEMBER(1, normal)));
+
+  // scene::vertex v{};
+  // const auto paccess = [](auto const& value) -> auto const& {
+  //   return value.position;
+  // };
+  // // breakpoint<decltype(paccess(v))>();
+  // const auto base_addr = reinterpret_cast<std::uintptr_t>(&v);
+  // const auto pos_addr = reinterpret_cast<std::uintptr_t>(&paccess(v));
+  // assert((pos_addr - base_addr) == offsetof(scene::vertex, position));
+  // breakpoint<decltype(std::declval<scene::vertex>().position)>();
+
+  // std::println(
+  //     "tuple offset = {}",
+  //     opengl::access_offset<std::tuple<vec2, vec3>>(ACCESS(t, std::get<0>(t))));
+
+  // assert(opengl::access_offset<scene::vertex>(ACCESS(v, v.position)) ==
+  //        offsetof(scene::vertex, position));
 
   vertex_array.set_element_buffer(element_buffer);
 

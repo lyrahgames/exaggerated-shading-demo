@@ -5,6 +5,7 @@
 namespace demo::opengl {
 
 struct float32_attr_format {
+  GLuint location;
   GLsizei size;
   GLenum type;
   GLintptr offset;
@@ -12,11 +13,13 @@ struct float32_attr_format {
 };
 
 struct float64_attr_format {
+  GLuint location;
   GLsizei size;
   GLintptr offset;
 };
 
 struct integer_attr_format {
+  GLuint location;
   GLsizei size;
   GLenum type;
   GLintptr offset;
@@ -26,10 +29,11 @@ using attr_format =
     std::variant<float32_attr_format, float64_attr_format, integer_attr_format>;
 
 template <typename type>
-constexpr auto attr(GLintptr offset) noexcept;
+constexpr auto attr(GLuint location, GLintptr offset) noexcept;
 template <>
-constexpr auto attr<vec3>(GLintptr offset) noexcept {
-  return float32_attr_format{.size = 3, .type = GL_FLOAT, .offset = offset};
+constexpr auto attr<vec3>(GLuint location, GLintptr offset) noexcept {
+  return float32_attr_format{
+      .location = location, .size = 3, .type = GL_FLOAT, .offset = offset};
 }
 
 // template <typename... attr>
@@ -44,6 +48,53 @@ struct buffer_format {
   GLsizei stride;
   std::vector<attr_format> attributes{};
 };
+
+template <typename access>
+struct access_location : access {
+  GLuint location;
+};
+template <typename access>
+access_location(access&&, GLuint)
+    -> access_location<std::unwrap_ref_decay_t<access>>;
+
+#define ACCESS(VAR, EXPR) [](auto const& VAR) -> auto const& { return EXPR; }
+
+#define MEMBER(LOCATION, NAME)                                    \
+  ::demo::opengl::access_location {                               \
+    [](auto const& x) -> auto const& { return x.NAME; }, LOCATION \
+  }
+
+template <typename type>
+inline auto access_offset(auto&& access, type const& value = {}) noexcept
+    -> std::uintptr_t {
+  const auto base_addr = reinterpret_cast<std::uintptr_t>(&value);
+  const auto pos_addr = reinterpret_cast<std::uintptr_t>(
+      &std::invoke(std::forward<decltype(access)>(access), value));
+  return pos_addr - base_addr;
+}
+
+template <typename value_type>
+constexpr auto format(GLintptr offset, auto&&... access) noexcept
+    -> buffer_format {
+  return opengl::buffer_format{
+      .offset = offset,
+      .stride = sizeof(value_type),
+      .attributes = {attr<
+          std::decay_t<decltype(access(std::declval<value_type const&>()))>>(
+          access.location, access_offset<value_type>(
+                               std::forward<decltype(access)>(access)))...}};
+}
+
+// template <typename value_type>
+// constexpr auto static_format(GLintptr offset, auto&&... access) noexcept {
+//   return opengl::static_buffer_format{
+//       .offset = offset,
+//       .stride = sizeof(value_type),
+//       .attributes = {attr<
+//           std::decay_t<decltype(access(std::declval<value_type const&>()))>>(
+//           access.location, access_offset<value_type>(
+//                                std::forward<decltype(access)>(access)))...}};
+// }
 
 template <typename type>
 concept attribute_format = std::is_empty_v<type> && requires {
@@ -152,43 +203,46 @@ struct vertex_array_base : object {
     glVertexArrayElementBuffer(native_handle(), elements.native_handle());
   }
 
-  void set_attribute(GLuint location,
-                     float32_attr_format const& format) const noexcept {
-    glVertexArrayAttribFormat(native_handle(), location, format.size,
-                              format.type, format.normalized, format.offset);
+  void set(GLuint location, float32_attr_format const& attr) const noexcept {
+    glEnableVertexArrayAttrib(native_handle(), attr.location);
+    glVertexArrayAttribBinding(native_handle(), attr.location, location);
+    glVertexArrayAttribFormat(native_handle(), attr.location, attr.size,
+                              attr.type, attr.normalized, attr.offset);
   }
 
-  void set_attribute(GLuint location,
-                     float64_attr_format const& format) const noexcept {
-    glVertexArrayAttribLFormat(native_handle(), location, format.size,
-                               GL_DOUBLE, format.offset);
+  void set(GLuint location, float64_attr_format const& attr) const noexcept {
+    glEnableVertexArrayAttrib(native_handle(), attr.location);
+    glVertexArrayAttribBinding(native_handle(), attr.location, location);
+    glVertexArrayAttribLFormat(native_handle(), attr.location, attr.size,
+                               GL_DOUBLE, attr.offset);
   }
 
-  void set_attribute(GLuint location,
-                     integer_attr_format const& format) const noexcept {
-    glVertexArrayAttribIFormat(native_handle(), location, format.size,
-                               format.type, format.offset);
+  void set(GLuint location, integer_attr_format const& attr) const noexcept {
+    glEnableVertexArrayAttrib(native_handle(), attr.location);
+    glVertexArrayAttribBinding(native_handle(), attr.location, location);
+    glVertexArrayAttribIFormat(native_handle(), attr.location, attr.size,
+                               attr.type, attr.offset);
   }
 
-  void set_attribute(GLuint location,
-                     attr_format const& format) const noexcept {
-    const auto f = [this, location](auto const& format) {
-      set_attribute(location, format);
-    };
-    std::visit(f, format);
+  void set(GLuint location, attr_format const& attr) const noexcept {
+    std::visit([this, location](auto const& attr) { set(location, attr); },
+               attr);
   }
 
   void set_vertex_buffer(GLuint location,
                          buffer_view vertices,
                          buffer_format const& format) const noexcept {
     set_vertex_buffer(location, vertices, format.offset, format.stride);
-    for (GLuint n = 0; auto const& attr : format.attributes) {
-      enable_attribute(n);
-      set_attribute(n, attr);
-      set_attribute_binding(n, location);
-      ++n;
-    }
+    for (auto const& attr : format.attributes) set(location, attr);
   }
+
+  // void set_vertex_buffer(GLuint location,
+  //                        buffer_view vertices,
+  //                        static_buffer_format const& format) const noexcept {
+  //   set_vertex_buffer(location, vertices, format.offset, format.stride);
+  //   std::apply([this, location](auto const&... attr) { set(location, attr); },
+  //              format.attributes);
+  // }
 
   template <attribute_format format>
     requires(format::type != GL_FLOAT) && (format::type != GL_DOUBLE)

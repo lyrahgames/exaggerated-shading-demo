@@ -42,6 +42,8 @@ using uint = GLuint;
 using size_type = GLsizeiptr;
 using ptrdiff_type = int32_t;
 
+using intptr = GLintptr;
+
 using float32 = float;
 using float64 = double;
 

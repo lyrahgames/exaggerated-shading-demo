@@ -1,7 +1,60 @@
 #pragma once
+#include "buffer.hpp"
 #include "defaults.hpp"
 
 namespace demo::opengl {
+
+template <typename type>
+concept attribute_format = std::is_empty_v<type> && requires {
+  { type::size } -> std::convertible_to<GLint>;
+  { type::type } -> std::convertible_to<GLenum>;
+};
+
+template <typename type>
+concept float32_attribute_format =
+    attribute_format<type> && (type::type == GL_FLOAT);
+
+template <typename T>
+struct attribute {};
+
+template <>
+struct attribute<float> {
+  static constexpr GLint size = 1;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute<vec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute<vec3> {
+  static constexpr GLint size = 3;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute<vec4> {
+  static constexpr GLint size = 4;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute<double> {
+  static constexpr GLint size = 1;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
+template <>
+struct attribute<dvec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
+template <typename type>
+inline constexpr auto attr = attribute<type>{};
 
 ///
 ///
@@ -45,6 +98,79 @@ struct vertex_array_base : object {
   /// Bind the vertex array object represented by the handle.
   ///
   void bind() const noexcept { glBindVertexArray(native_handle()); }
+
+  ///
+  ///
+  void set_vertex_buffer(GLuint location,
+                         buffer_view vertices,
+                         GLintptr offset,
+                         GLsizei stride) const noexcept {
+    glVertexArrayVertexBuffer(native_handle(), location,  //
+                              vertices.native_handle(), offset, stride);
+  }
+
+  ///
+  ///
+  void set_element_buffer(buffer_view elements) const noexcept {
+    glVertexArrayElementBuffer(native_handle(), elements.native_handle());
+  }
+
+  template <attribute_format format>
+    requires(format::type != GL_FLOAT) && (format::type != GL_DOUBLE)
+  void set_float32_attribute(GLuint location,
+                             format,
+                             GLuint offset,
+                             GLboolean normalized = GL_FALSE) const noexcept {
+    glVertexArrayAttribFormat(native_handle(), location, format::size,
+                              format::type, normalized, offset);
+  }
+
+  template <attribute_format format>
+    requires(format::type == GL_FLOAT) || (format::type == GL_DOUBLE)
+  void set_float32_attribute(GLuint location,
+                             format,
+                             GLuint offset) const noexcept {
+    glVertexArrayAttribFormat(native_handle(), location,  //
+                              format::size, format::type, GL_FALSE, offset);
+  }
+
+  template <attribute_format format>
+  void set_integer_attribute(GLuint location,
+                             format,
+                             GLuint offset) const noexcept {
+    glVertexArrayAttribIFormat(native_handle(), location,  //
+                               format::size, format::type, offset);
+  }
+
+  template <attribute_format format>
+    requires(format::type == GL_DOUBLE)
+  void set_float64_attribute(GLuint location,
+                             format,
+                             GLuint offset) const noexcept {
+    glVertexArrayAttribLFormat(native_handle(), location,  //
+                               format::size, GL_DOUBLE, offset);
+  }
+
+  template <attribute_format format>
+  void set_attribute(GLuint location, format f, GLuint offset = 0) {
+    if constexpr (format::type == GL_FLOAT)
+      set_float32_attribute(location, f, offset);
+    else if constexpr (format::type == GL_DOUBLE)
+      set_float64_attribute(location, f, offset);
+    else
+      set_integer_attribute(location, f, offset);
+  }
+
+  void set_attribute_binding(GLuint attr, GLuint buffer) const noexcept {
+    glVertexArrayAttribBinding(native_handle(), attr, buffer);
+  }
+
+  void enable_attribute(GLuint attr) const noexcept {
+    glEnableVertexArrayAttrib(native_handle(), attr);
+  }
+  void disable_attribute(GLuint attr) const noexcept {
+    glDisableVertexArrayAttrib(native_handle(), attr);
+  }
 };
 
 ///

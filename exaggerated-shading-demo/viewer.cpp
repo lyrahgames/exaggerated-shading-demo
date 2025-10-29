@@ -21,9 +21,10 @@ opengl_window::opengl_window(uint width, uint height)
                  sf::ContextSettings::Core /*| sf::ContextSettings::Debug*/,
                  /*.sRgbCapable = */ false}) {
   // window.setActive(true);
-  glbinding::initialize(sf::Context::getFunction);
   window.setVerticalSyncEnabled(true);
   window.setKeyRepeatEnabled(false);
+
+  glbinding::initialize(sf::Context::getFunction);
 }
 
 viewer::viewer(uint width, uint height) : opengl_window{width, height} {
@@ -37,15 +38,19 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glLineWidth(0.5f);
   glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
-  vertex_array.bind();
-  vertex_buffer.bind(GL_ARRAY_BUFFER);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
-                        (void*)offsetof(scene::vertex, position));
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(scene::vertex),
-                        (void*)offsetof(scene::vertex, normal));
-  element_buffer.bind(GL_ELEMENT_ARRAY_BUFFER);
+  vertex_array.enable_attribute(0);
+  vertex_array.set_attribute(0, opengl::attr<vec3>,
+                             offsetof(scene::vertex, position));
+  vertex_array.set_attribute_binding(0, 0);
+
+  vertex_array.enable_attribute(1);
+  vertex_array.set_attribute(1, opengl::attr<vec3>,
+                             offsetof(scene::vertex, normal));
+  vertex_array.set_attribute_binding(1, 0);
+
+  vertex_array.set_vertex_buffer(0, vertex_buffer, 0, sizeof(scene::vertex));
+  vertex_array.set_element_buffer(element_buffer);
+
   normals_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
   czstring vertex_shader_src = (const char[]){
@@ -78,8 +83,6 @@ void viewer::run() {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
         if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
           scale = (scale + 1) % scales;
-          // glProgramUniform1ui(shader, glGetUniformLocation(shader, "scale"),
-          //                     scale);
           shader.set("scale", scale);
         }
       }
@@ -110,6 +113,7 @@ void viewer::run() {
 
 void viewer::render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  vertex_array.bind();
   glDrawElements(GL_TRIANGLES, 3 * scene.faces.size(), GL_UNSIGNED_INT, 0);
 }
 
@@ -151,9 +155,9 @@ void viewer::load_scene(const filesystem::path& path) {
 
   fit_view_to_surface();
 
-  vertex_buffer.alloc_and_init(scene.vertices);
-  element_buffer.alloc_and_init(scene.faces);
-  normals_buffer.alloc_and_init(scene.smoothed_normals);
+  vertex_buffer.assign(scene.vertices);
+  element_buffer.assign(scene.faces);
+  normals_buffer.assign(scene.smoothed_normals);
 
   shader.set("scales", (uint32)scales);
   shader.set("count", (uint32)scene.vertices.size());

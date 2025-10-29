@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -39,5 +40,10 @@ using glm::vec4;
 
 inline constexpr auto pi = numbers::pi_v<real>;
 inline constexpr auto infinity = numeric_limits<real>::infinity();
+
+template <typename... types>
+void breakpoint() = delete;
+template <typename... types>
+void breakpoint(types...) = delete;
 
 }  // namespace demo

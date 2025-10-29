@@ -51,7 +51,7 @@ struct buffer_base : object {
 
   ///
   ///
-  auto size() const noexcept -> size_t {
+  auto size() const noexcept -> size_type {
     GLint s;
     glGetNamedBufferParameteriv(handle, GL_BUFFER_SIZE, &s);
     return s;
@@ -59,29 +59,32 @@ struct buffer_base : object {
 
   ///
   ///
-  void alloc_and_init(const void* data, size_type size) const noexcept {
+  void assign(const void* data, size_type size) const noexcept {
     glNamedBufferData(native_handle(), size, data, GL_STATIC_DRAW);
   }
 
   ///
   ///
-  void alloc_and_init(const auto* data, size_type size) const noexcept {
-    alloc_and_init(static_cast<const void*>(data), size * sizeof(data[0]));
+  void assign(const auto* data, size_type size) const noexcept {
+    assign(static_cast<const void*>(data), size * sizeof(data[0]));
   }
 
+  ///
+  ///
+  void assign(const std::ranges::contiguous_range auto& range) const noexcept {
+    assign(ranges::data(range), ranges::size(range));
+  }
+
+  ///
+  ///
   template <transferable type>
     requires(!std::ranges::contiguous_range<type>)  //
-  void alloc_and_init(const type& value) const noexcept {
-    alloc_and_init(&value, 1);
-  }
-
-  void alloc_and_init(
-      const std::ranges::contiguous_range auto& range) const noexcept {
-    alloc_and_init(ranges::data(range), ranges::size(range));
+  void assign(const type& value) const noexcept {
+    assign(&value, 1);
   }
 
   // void alloc(size_type size) const noexcept {
-  //   alloc_and_init(static_cast<const void*>(nullptr), size);
+  //   assign(static_cast<const void*>(nullptr), size);
   // }
 
   // void write(const void* data,

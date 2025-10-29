@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <variant>
 //
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>

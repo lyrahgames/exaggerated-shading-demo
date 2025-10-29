@@ -38,17 +38,24 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glLineWidth(0.5f);
   glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
-  vertex_array.enable_attribute(0);
-  vertex_array.set_attribute(0, opengl::attr<vec3>,
-                             offsetof(scene::vertex, position));
-  vertex_array.set_attribute_binding(0, 0);
+  // Foo f{};
+  // Foo* base = &f;
+  // std::uintptr_t base_addr = reinterpret_cast<std::uintptr_t>(base);
+  // std::uintptr_t a_addr = reinterpret_cast<std::uintptr_t>(&(base->a));
+  // std::uintptr_t b_addr = reinterpret_cast<std::uintptr_t>(&(base->b));
+  // std::uintptr_t c_addr = reinterpret_cast<std::uintptr_t>(&(base->c));
+  // std::cout << "offset of a = " << (a_addr - base_addr) << "\n";
+  // std::cout << "offset of b = " << (b_addr - base_addr) << "\n";
+  // std::cout << "offset of c = " << (c_addr - base_addr) << "\n";
 
-  vertex_array.enable_attribute(1);
-  vertex_array.set_attribute(1, opengl::attr<vec3>,
-                             offsetof(scene::vertex, normal));
-  vertex_array.set_attribute_binding(1, 0);
+  vertex_array.set_vertex_buffer(
+      0, vertex_buffer,
+      opengl::buffer_format{
+          // .offset = 0,
+          .stride = sizeof(scene::vertex),
+          .attributes = {opengl::attr<vec3>(offsetof(scene::vertex, position)),
+                         opengl::attr<vec3>(offsetof(scene::vertex, normal))}});
 
-  vertex_array.set_vertex_buffer(0, vertex_buffer, 0, sizeof(scene::vertex));
   vertex_array.set_element_buffer(element_buffer);
 
   normals_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);

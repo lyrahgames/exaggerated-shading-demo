@@ -7,6 +7,7 @@ uniform vec4 light = vec4(1, -1, -0.1, 0.0);
 
 layout (location = 0) in vec3 p;
 layout (location = 1) in vec3 n;
+layout (location = 2) in vec4 nn;
 
 uniform uint count = 0;
 uniform uint scales = 0;
@@ -24,8 +25,8 @@ void main() {
   // normal = vec3(view * vec4(n, 0.0));
   // normal = vec3(view * normals[scale * count + gl_VertexID]);
 
-  const float a = 2.0;
 
+  const float a = 2.0;
   const vec3 l = -normalize(vec3(inverse(view) * light));
   float w = 1.0;
   float x = w * clamp(a * dot(n, l), -1.0, 1.0);
@@ -36,5 +37,7 @@ void main() {
   }
   x /= w;
   x = 0.5 * (1.0 + x);
+  x = 0.01 * x + 0.99 * (0.5 * (1.0 + clamp(dot(vec3(n), l), -1.0, 1.0)));
+  // x = 0.01 * x + 0.99 * (0.5 * (1.0 + clamp(dot(vec3(normals[gl_VertexID]), l), -1.0, 1.0)));
   intensity = x;
 }

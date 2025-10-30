@@ -38,45 +38,23 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glLineWidth(0.5f);
   glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
-  // Foo f{};
-  // Foo* base = &f;
-  // std::uintptr_t base_addr = reinterpret_cast<std::uintptr_t>(base);
-  // std::uintptr_t a_addr = reinterpret_cast<std::uintptr_t>(&(base->a));
-  // std::uintptr_t b_addr = reinterpret_cast<std::uintptr_t>(&(base->b));
-  // std::uintptr_t c_addr = reinterpret_cast<std::uintptr_t>(&(base->c));
-  // std::cout << "offset of a = " << (a_addr - base_addr) << "\n";
-  // std::cout << "offset of b = " << (b_addr - base_addr) << "\n";
-  // std::cout << "offset of c = " << (c_addr - base_addr) << "\n";
+  // vertex_array.format(
+  //     opengl::mapping<scene::vertex>(vertex_buffer,  //
+  //                                    MEMBER(0, position), MEMBER(1, normal)),
+  //     opengl::mapping<scene::color>(color_buffer, 3));
 
   // vertex_array.set_vertex_buffer(
-  //     0, vertex_buffer,
-  //     opengl::buffer_format{
-  //         // .offset = 0,
-  //         .stride = sizeof(scene::vertex),
-  //         .attributes = {
-  //             opengl::attr<vec3>(0, offsetof(scene::vertex, position)),
-  //             opengl::attr<vec3>(1, offsetof(scene::vertex, normal))}});
+  //     0, opengl::format<scene::vertex>(vertex_buffer,        //
+  //                                      MEMBER(0, position),  //
+  //                                      MEMBER(1, normal)));
 
-  vertex_array.set_vertex_buffer(
-      0, vertex_buffer,
-      opengl::format<scene::vertex>(0, MEMBER(0, position), MEMBER(1, normal)));
-
-  // scene::vertex v{};
-  // const auto paccess = [](auto const& value) -> auto const& {
-  //   return value.position;
-  // };
-  // // breakpoint<decltype(paccess(v))>();
-  // const auto base_addr = reinterpret_cast<std::uintptr_t>(&v);
-  // const auto pos_addr = reinterpret_cast<std::uintptr_t>(&paccess(v));
-  // assert((pos_addr - base_addr) == offsetof(scene::vertex, position));
-  // breakpoint<decltype(std::declval<scene::vertex>().position)>();
-
-  // std::println(
-  //     "tuple offset = {}",
-  //     opengl::access_offset<std::tuple<vec2, vec3>>(ACCESS(t, std::get<0>(t))));
-
-  // assert(opengl::access_offset<scene::vertex>(ACCESS(v, v.position)) ==
-  //        offsetof(scene::vertex, position));
+  // vertex_array.format(
+  //     opengl::format<scene::vertex>(vertex_buffer, MEMBER(0, position),
+  //                                   MEMBER(1, normal)),
+  //     opengl::buffer_format{.buffer = normals_buffer,
+  //                           .offset = (scales - 1) * sizeof(vec4),
+  //                           .stride = sizeof(vec4),
+  //                           .attributes = {opengl::attr<vec4>(2, 0)}});
 
   vertex_array.set_element_buffer(element_buffer);
 
@@ -190,6 +168,22 @@ void viewer::load_scene(const filesystem::path& path) {
 
   shader.set("scales", (uint32)scales);
   shader.set("count", (uint32)scene.vertices.size());
+
+  // vertex_array.format(
+  //     opengl::format<scene::vertex>(vertex_buffer, MEMBER(0, position),
+  //                                   MEMBER(1, normal)),
+  //     opengl::buffer_format{
+  //         .buffer = normals_buffer,
+  //         .offset = (scales - 1) * sizeof(vec4) * scene.vertices.size(),
+  //         .stride = sizeof(vec4),
+  //         .attributes = {opengl::attr<vec4>(2, 0)}});
+
+  vertex_array.format(
+      opengl::format<scene::vertex>(vertex_buffer,  //
+                                    MEMBER(0, position), MEMBER(1, normal)),
+      opengl::offset_format<vec4>(
+          normals_buffer, (scales - 1) * sizeof(vec4) * scene.vertices.size(),
+          ACCESS(2, x, x)));
 }
 
 void viewer::fit_view_to_surface() {

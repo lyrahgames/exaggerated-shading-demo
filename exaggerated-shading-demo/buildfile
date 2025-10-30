@@ -11,8 +11,9 @@ glsl{*}: extension = glsl
 exe{exaggerated-shading-demo}: {hxx ixx txx cxx glsl}{**} $libs
 {
   # test.arguments = /home/lyrahgames/projects/sgp2024/data/gargoyle.obj
-  test.arguments = /home/lyrahgames/projects/sgp2024/data/armadillo/armadillo.obj
+  # test.arguments = /home/lyrahgames/projects/sgp2024/data/armadillo/armadillo.obj
   # test.arguments = /home/lyrahgames/projects/sgp2024/data/memento.obj
+  test.arguments = /home/lyrahgames/data/models/libigl-data/armadillo.obj
 }
 
 cxx.poptions =+ "-I$out_root" "-I$src_root"

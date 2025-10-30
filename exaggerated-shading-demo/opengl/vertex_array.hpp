@@ -35,6 +35,11 @@ constexpr auto attr<vec3>(GLuint location, GLintptr offset) noexcept {
   return float32_attr_format{
       .location = location, .size = 3, .type = GL_FLOAT, .offset = offset};
 }
+template <>
+constexpr auto attr<vec4>(GLuint location, GLintptr offset) noexcept {
+  return float32_attr_format{
+      .location = location, .size = 4, .type = GL_FLOAT, .offset = offset};
+}
 
 // template <typename... attr>
 // struct static_buffer_format {
@@ -44,6 +49,7 @@ constexpr auto attr<vec3>(GLuint location, GLintptr offset) noexcept {
 // };
 
 struct buffer_format {
+  buffer_view buffer;
   GLintptr offset;
   GLsizei stride;
   std::vector<attr_format> attributes{};
@@ -57,7 +63,13 @@ template <typename access>
 access_location(access&&, GLuint)
     -> access_location<std::unwrap_ref_decay_t<access>>;
 
-#define ACCESS(VAR, EXPR) [](auto const& VAR) -> auto const& { return EXPR; }
+// Think again about `auto const&`.
+// Making it const could lead to problems when access creates temporary.
+// Explicitly using a non-const lvalue reference could fix this problem.
+#define ACCESS(LOCATION, VAR, EXPR)                               \
+  ::demo::opengl::access_location {                               \
+    [](auto const& VAR) -> auto const& { return EXPR; }, LOCATION \
+  }
 
 #define MEMBER(LOCATION, NAME)                                    \
   ::demo::opengl::access_location {                               \
@@ -74,9 +86,11 @@ inline auto access_offset(auto&& access, type const& value = {}) noexcept
 }
 
 template <typename value_type>
-constexpr auto format(GLintptr offset, auto&&... access) noexcept
-    -> buffer_format {
+constexpr auto offset_format(buffer_view buffer,
+                             GLintptr offset,
+                             auto&&... access) noexcept -> buffer_format {
   return opengl::buffer_format{
+      .buffer = buffer,
       .offset = offset,
       .stride = sizeof(value_type),
       .attributes = {attr<
@@ -85,16 +99,12 @@ constexpr auto format(GLintptr offset, auto&&... access) noexcept
                                std::forward<decltype(access)>(access)))...}};
 }
 
-// template <typename value_type>
-// constexpr auto static_format(GLintptr offset, auto&&... access) noexcept {
-//   return opengl::static_buffer_format{
-//       .offset = offset,
-//       .stride = sizeof(value_type),
-//       .attributes = {attr<
-//           std::decay_t<decltype(access(std::declval<value_type const&>()))>>(
-//           access.location, access_offset<value_type>(
-//                                std::forward<decltype(access)>(access)))...}};
-// }
+template <typename value_type>
+constexpr auto format(buffer_view buffer, auto&&... access) noexcept
+    -> buffer_format {
+  return offset_format<value_type>(buffer, 0,
+                                   std::forward<decltype(access)>(access)...);
+}
 
 template <typename type>
 concept attribute_format = std::is_empty_v<type> && requires {
@@ -230,10 +240,14 @@ struct vertex_array_base : object {
   }
 
   void set_vertex_buffer(GLuint location,
-                         buffer_view vertices,
                          buffer_format const& format) const noexcept {
-    set_vertex_buffer(location, vertices, format.offset, format.stride);
+    set_vertex_buffer(location, format.buffer, format.offset, format.stride);
     for (auto const& attr : format.attributes) set(location, attr);
+  }
+
+  void format(auto const&... buffers) const noexcept {
+    GLuint n = 0;
+    (set_vertex_buffer(n++, buffers), ...);
   }
 
   // void set_vertex_buffer(GLuint location,
@@ -300,6 +314,8 @@ struct vertex_array_base : object {
   void disable_attribute(GLuint attr) const noexcept {
     glDisableVertexArrayAttrib(native_handle(), attr);
   }
+
+  void vertex_mapping(auto&&... mappings) const noexcept {}
 };
 
 ///

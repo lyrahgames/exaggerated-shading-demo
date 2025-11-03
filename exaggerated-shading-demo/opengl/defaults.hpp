@@ -41,6 +41,8 @@ using uint64 = uint64_t;
 
 using uint = GLuint;
 using size_type = GLsizeiptr;
+using offset_type = GLintptr;
+
 using ptrdiff_type = int32_t;
 
 using intptr = GLintptr;

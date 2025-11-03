@@ -4,6 +4,45 @@
 
 namespace demo::opengl {
 
+template <typename T>
+struct attribute_type {};
+
+template <>
+struct attribute_type<float> {
+  static constexpr GLint size = 1;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_type<vec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_type<vec3> {
+  static constexpr GLint size = 3;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_type<vec4> {
+  static constexpr GLint size = 4;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_type<double> {
+  static constexpr GLint size = 1;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
+template <>
+struct attribute_type<dvec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
 struct float32_attr_format {
   GLuint location;
   GLsizei size;
@@ -29,17 +68,61 @@ using attr_format =
     std::variant<float32_attr_format, float64_attr_format, integer_attr_format>;
 
 template <typename type>
-constexpr auto attr(GLuint location, GLintptr offset) noexcept;
-template <>
-constexpr auto attr<vec3>(GLuint location, GLintptr offset) noexcept {
+constexpr auto f32_attr(GLuint location, GLintptr offset) noexcept {
+  using attribute = attribute_type<type>;
   return float32_attr_format{
-      .location = location, .size = 3, .type = GL_FLOAT, .offset = offset};
+      .location = location,
+      .size = attribute::size,
+      .type = attribute::type,
+      .offset = offset,
+  };
 }
-template <>
-constexpr auto attr<vec4>(GLuint location, GLintptr offset) noexcept {
+
+template <typename type>
+  requires(attribute_type<type>::type == GL_DOUBLE)
+constexpr auto f64_attr(GLuint location, GLintptr offset) noexcept {
+  using attribute = attribute_type<type>;
+  return float64_attr_format{
+      .location = location,
+      .size = attribute::size,
+      .offset = offset,
+  };
+}
+
+template <typename type>
+constexpr auto int_attr(GLuint location, GLintptr offset) noexcept {
+  using attribute = attribute_type<type>;
+  return integer_attr_format{
+      .location = location,
+      .size = attribute::size,
+      .type = attribute::type,
+      .offset = offset,
+  };
+}
+
+template <typename type>
+constexpr auto attr(GLuint location, GLintptr offset) noexcept {
+  using attribute = attribute_type<type>;
   return float32_attr_format{
-      .location = location, .size = 4, .type = GL_FLOAT, .offset = offset};
+      .location = location,
+      .size = attribute::size,
+      .type = attribute::type,
+      .offset = offset,
+  };
 }
+
+// template <typename type>
+// constexpr auto attr(GLuint location, GLintptr offset) noexcept;
+// template <>
+// constexpr auto attr<vec3>(GLuint location, GLintptr offset) noexcept {
+//   return float32_attr_format{
+//       .location = location, .size = 3, .type = GL_FLOAT, .offset = offset};
+// }
+// template <>
+// constexpr auto attr<vec4>(GLuint location, GLintptr offset) noexcept {
+//   return float32_attr_format{
+//       .location = location, .size = 4, .type = GL_FLOAT, .offset = offset};
+// }
 
 // template <typename... attr>
 // struct static_buffer_format {
@@ -110,45 +193,6 @@ template <typename type>
 concept attribute_format = std::is_empty_v<type> && requires {
   { type::size } -> std::convertible_to<GLint>;
   { type::type } -> std::convertible_to<GLenum>;
-};
-
-template <typename T>
-struct attribute {};
-
-template <>
-struct attribute<float> {
-  static constexpr GLint size = 1;
-  static constexpr GLenum type = GL_FLOAT;
-};
-
-template <>
-struct attribute<vec2> {
-  static constexpr GLint size = 2;
-  static constexpr GLenum type = GL_FLOAT;
-};
-
-template <>
-struct attribute<vec3> {
-  static constexpr GLint size = 3;
-  static constexpr GLenum type = GL_FLOAT;
-};
-
-template <>
-struct attribute<vec4> {
-  static constexpr GLint size = 4;
-  static constexpr GLenum type = GL_FLOAT;
-};
-
-template <>
-struct attribute<double> {
-  static constexpr GLint size = 1;
-  static constexpr GLenum type = GL_DOUBLE;
-};
-
-template <>
-struct attribute<dvec2> {
-  static constexpr GLint size = 2;
-  static constexpr GLenum type = GL_DOUBLE;
 };
 
 // template <typename type>

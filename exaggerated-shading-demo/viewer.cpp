@@ -56,7 +56,8 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   //                           .stride = sizeof(vec4),
   //                           .attributes = {opengl::attr<vec4>(2, 0)}});
 
-  vertex_array.set_element_buffer(element_buffer);
+  // vertex_array.set_element_buffer(element_buffer);
+  vertex_array.set_element_buffer(elements.buffer());
 
   normals_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
@@ -162,9 +163,14 @@ void viewer::load_scene(const filesystem::path& path) {
 
   fit_view_to_surface();
 
-  vertex_buffer.assign(scene.vertices);
-  element_buffer.assign(scene.faces);
+  // vertex_buffer.assign(scene.vertices);
+  // element_buffer.assign(scene.faces);
   normals_buffer.assign(scene.smoothed_normals);
+
+  vertices.assign(scene.vertices);
+  assert(vertices.size() == scene.vertices.size());
+  elements.assign(scene.faces);
+  assert(elements.size() == scene.faces.size());
 
   shader.set("scales", (uint32)scales);
   shader.set("count", (uint32)scene.vertices.size());
@@ -179,7 +185,7 @@ void viewer::load_scene(const filesystem::path& path) {
   //         .attributes = {opengl::attr<vec4>(2, 0)}});
 
   vertex_array.format(
-      opengl::format<scene::vertex>(vertex_buffer,  //
+      opengl::format<scene::vertex>(vertices.buffer(),  //
                                     MEMBER(0, position), MEMBER(1, normal)),
       opengl::offset_format<vec4>(
           normals_buffer, (scales - 1) * sizeof(vec4) * scene.vertices.size(),

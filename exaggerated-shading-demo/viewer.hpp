@@ -38,10 +38,13 @@ class viewer : public opengl_window {
   uint32 scale = 0;
 
   opengl::vertex_array vertex_array{};
-  opengl::buffer vertex_buffer{};
-  opengl::buffer element_buffer{};
+  // opengl::buffer vertex_buffer{};
+  // opengl::buffer element_buffer{};
   opengl::buffer normals_buffer{};
   opengl::program shader{};
+
+  opengl::vector<scene::vertex> vertices{};
+  opengl::vector<scene::face> elements{};
 
  public:
   viewer(uint width = 500, uint height = 500);

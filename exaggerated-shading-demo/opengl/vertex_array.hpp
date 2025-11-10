@@ -131,6 +131,21 @@ constexpr auto attr(GLuint location, GLintptr offset) noexcept {
 //   std::tuple<attr...> attributes{};
 // };
 
+template <typename type>
+struct basic_vertex_buffer_format {
+  using attribute_list_type = type;
+  buffer_view buffer;
+  offset_type offset;
+  size_type stride;
+  attribute_list_type attributes;
+};
+
+template <typename... types>
+using static_vertex_buffer_format =
+    basic_vertex_buffer_format<std::tuple<types...>>;
+using vertex_buffer_format =
+    basic_vertex_buffer_format<std::vector<attr_format>>;
+
 struct buffer_format {
   buffer_view buffer;
   GLintptr offset;

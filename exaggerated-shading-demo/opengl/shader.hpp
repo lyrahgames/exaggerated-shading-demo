@@ -139,6 +139,21 @@ struct shader_base : object {
     glShaderSource(native_handle(), count, strings.data(), lengths.data());
   }
 
+  ///
+  ///
+  void set_sources(std::ranges::range auto const& str) const {
+    const GLsizei count = std::ranges::size(str);
+    const auto lengths = str |
+                         std::ranges::views::transform(
+                             [](auto const& str) { return size(str); }) |
+                         std::ranges::to<std::vector<GLint>>();
+    const auto strings = str |
+                         std::ranges::views::transform(
+                             [](auto const& str) { return data(str); }) |
+                         std::ranges::to<std::vector<GLstring>>();
+    glShaderSource(native_handle(), count, strings.data(), lengths.data());
+  }
+
   /// This function returns the concatenated source string
   /// for the specified shader object.
   ///

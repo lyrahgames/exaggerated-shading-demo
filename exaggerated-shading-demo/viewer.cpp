@@ -68,18 +68,24 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 
   normals_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
-  czstring vertex_shader_src = (const char[]){
-#embed "vs.glsl" suffix(, )
-      0,
-  };
-  czstring fragment_shader_src = (const char[]){
-#embed "fs.glsl" suffix(, )
-      0,
-  };
-  const auto status = shader.build(opengl::vs(vertex_shader_src),
-                                   opengl::fs(fragment_shader_src));
-  status.print();
-  if (not status.success) done = true;
+  //   czstring vertex_shader_src = (const char[]){
+  // #embed "vs.glsl" suffix(, )
+  //       0,
+  //   };
+  //   czstring fragment_shader_src = (const char[]){
+  // #embed "fs.glsl" suffix(, )
+  //       0,
+  //   };
+  //   const auto status = shader.build(opengl::vs(vertex_shader_src),
+  //                                    opengl::fs(fragment_shader_src));
+  //   status.print();
+  //   if (not status.success) done = true;
+
+  const auto rule = opengl::program_build_rule{
+      {{GL_VERTEX_SHADER, {{"vs.glsl"}}}, {GL_FRAGMENT_SHADER, {{"fs.glsl"}}}}};
+  shader = rule.build();
+  assert(shader.valid());
+
   shader.use();
 }
 

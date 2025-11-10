@@ -86,6 +86,18 @@ struct program_base : object {
     (glDetachShader(native_handle(), obj.native_handle()), ...);
   }
 
+  void link_range(
+      std::ranges::bidirectional_range auto const& obj) const noexcept {
+    std::ranges::for_each(obj, [this](auto const& obj) {
+      assert(obj.compiled());
+      glAttachShader(native_handle(), obj.native_handle());
+    });
+    glLinkProgram(native_handle());
+    std::ranges::for_each(obj | std::views::reverse, [this](auto const& obj) {
+      glDetachShader(native_handle(), obj.native_handle());
+    });
+  }
+
   template <shader_like... shader_types>
   struct build_status {
     using tuple = std::tuple<shader_types...>;

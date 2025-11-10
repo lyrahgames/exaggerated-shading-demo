@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstdint>
@@ -111,6 +112,24 @@ STRICT_USING(resource_acquisition_error, error);
 ///
 ///
 STRICT_USING(invalid_uniform_identifier, error);
+
+/// Return the content of a file given by its path as a standard `string` object.
+///
+inline auto string_from_file(std::filesystem::path const& path) -> std::string {
+  // We will read all characters as block and open the file in binary mode.
+  // Make sure to jump to its end for directly reading its size.
+  std::ifstream file{path, std::ios::binary | std::ios::ate};
+  if (!file)
+    throw error(std::format("Failed to open file '{}'.", path.string()));
+  // Read the file's size.
+  const auto size = file.tellg();
+  // Prepare the result string with a sufficiently large buffer.
+  string result(size, '\0');
+  // Go back to the start and read all characters at once in a block.
+  file.seekg(0);
+  file.read(result.data(), size);
+  return result;
+};
 
 ///
 ///

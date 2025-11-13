@@ -52,6 +52,11 @@ class viewer : public opengl_window {
   opengl::vector<scene::vertex> vertices{};
   opengl::vector<scene::face> elements{};
 
+  opengl::program_build_rule program_rule{{
+      {GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
+      {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs.glsl"}}},
+  }};
+
  public:
   viewer(uint width = 500, uint height = 500);
 
@@ -65,6 +70,7 @@ class viewer : public opengl_window {
   void zoom(float scale);
 
   void add_path(std::filesystem::path const& path);
+  void build_shader();
 
  protected:
   void render();

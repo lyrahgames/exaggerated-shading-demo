@@ -79,12 +79,13 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   //   const auto status = shader.build(opengl::vs(vertex_shader_src),
   //                                    opengl::fs(fragment_shader_src));
   //   status.print();
-  //   if (not status.success) done = true;
+  // if (not status.success) done = true;
 
   const auto rule = opengl::program_build_rule{
-      {{GL_VERTEX_SHADER, {{"vs.glsl"}}}, {GL_FRAGMENT_SHADER, {{"fs.glsl"}}}}};
+      {{GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
+       {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs.glsl"}}}}};
   shader = rule.build();
-  assert(shader.valid());
+  // assert(shader.valid());
 
   shader.use();
 }

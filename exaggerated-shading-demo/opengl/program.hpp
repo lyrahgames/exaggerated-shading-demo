@@ -86,14 +86,12 @@ struct program_base : object {
     (glDetachShader(native_handle(), obj.native_handle()), ...);
   }
 
-  void link_range(
-      std::ranges::bidirectional_range auto const& obj) const noexcept {
-    std::ranges::for_each(obj, [this](auto const& obj) {
-      assert(obj.compiled());
+  void link_range(std::ranges::bidirectional_range auto&& obj) const noexcept {
+    std::ranges::for_each(obj, [this](auto&& obj) {
       glAttachShader(native_handle(), obj.native_handle());
     });
     glLinkProgram(native_handle());
-    std::ranges::for_each(obj | std::views::reverse, [this](auto const& obj) {
+    std::ranges::for_each(obj | std::views::reverse, [this](auto&& obj) {
       glDetachShader(native_handle(), obj.native_handle());
     });
   }

@@ -267,4 +267,36 @@ constexpr auto forward(std::remove_reference_t<type>& value) noexcept
 template <typename type>
 concept transferable = std::regular<type> && std::is_trivially_copyable_v<type>;
 
+///
+///
+template <typename type, typename... types>
+concept one_of = (std::same_as<type, types> || ...);
+
+///
+///
+// template <typename type>
+// concept string_like = one_of<std::decay_t<type>, std::string, std::string_view>;
+
+// The string-like concept itself should not really be used
+// in interfaces that require a single string.
+// Instead, it is used to simplify range access
+// to strings that need to be given as input.
+template <typename type, typename char_type>
+concept basic_string_like =
+    std::ranges::contiguous_range<type> &&
+    std::same_as<std::decay_t<std::ranges::range_value_t<type>>, char_type>;
+
+template <typename type>
+concept string_like = basic_string_like<type, char>;
+
+template <typename type>
+concept string_range = std::ranges::input_range<type> &&
+                       string_like<std::ranges::range_value_t<type>>;
+
+template <typename type>
+concept stable_string_range =
+    string_range<type> &&
+    (std::ranges::borrowed_range<std::ranges::range_value_t<type>> ||
+     std::is_reference_v<std::ranges::range_reference_t<type>>);
+
 }  // namespace demo::opengl

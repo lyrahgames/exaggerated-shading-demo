@@ -6,11 +6,7 @@ namespace demo::opengl {
 struct source {
   std::filesystem::path path{};
 
-  auto string() const {
-    const auto src = string_from_file(path);
-    // std::println("{}", src);
-    return src;
-  }
+  auto string() const { return string_from_file(path); }
 };
 
 struct shader_build_rule {
@@ -19,12 +15,9 @@ struct shader_build_rule {
 
   auto build() const {
     shader obj{shader_type};
-    obj.set_sources(sources |
-                    std::ranges::views::transform(
-                        [](auto const& src) { return src.string(); }));
-    std::println("{}", obj.source());
+    obj.set_sources(sources | std::views::transform(
+                                  [](auto&& src) { return src.string(); }));
     obj.compile();
-    assert(obj.compiled());
     return obj;
   }
 };
@@ -34,10 +27,9 @@ struct program_build_rule {
 
   auto build() const {
     program exe{};
-    auto obj =
-        shaders |
-        std::views::transform([](auto const& rule) { return rule.build(); }) |
-        std::ranges::to<std::vector<shader>>();
+    auto obj = shaders |
+               std::views::transform([](auto&& rule) { return rule.build(); }) |
+               std::ranges::to<std::vector>();
     exe.link_range(obj);
     return exe;
   }

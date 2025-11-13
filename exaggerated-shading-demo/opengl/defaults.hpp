@@ -249,6 +249,7 @@ using decay = std::conditional_t<viewable<type>,
 
 /// Using this forward will forward an OpenGL object
 /// as its respective view if it is possible.
+/// Maybe rename to `forward_or_view`, `forward_cast`, `view_forward`, etc
 ///
 template <viewable type>
 constexpr auto forward(std::remove_reference_t<type>& value) noexcept ->

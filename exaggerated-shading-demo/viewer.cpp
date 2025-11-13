@@ -74,13 +74,12 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   //   status.print();
   // if (not status.success) done = true;
 
-  const auto rule = opengl::program_build_rule{
-      {{GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
-       {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs.glsl"}}}}};
-  shader = rule.build();
+  // shader = program_rule.build();
   // assert(shader.valid());
 
-  shader.use();
+  // shader.use();
+
+  build_shader();
 }
 
 void viewer::run() {
@@ -99,6 +98,8 @@ void viewer::run() {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
           scale = (scale + 1) % scales;
           shader.set("scale", scale);
+        } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
+          build_shader();
         }
       }
     }
@@ -225,6 +226,15 @@ void viewer::shift(const vec2& pixels) {
 
 void viewer::zoom(float scale) {
   radius *= exp(-scale);
+  view_should_update = true;
+}
+
+void viewer::build_shader() {
+  auto [exe, status] = program_rule.build();
+  status.print();
+  if (not status.success) return;
+  shader = std::move(exe);
+  shader.use();
   view_should_update = true;
 }
 

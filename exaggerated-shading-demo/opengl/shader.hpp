@@ -246,40 +246,40 @@ struct shader final : unique<shader_base> {
 ///
 STRICT_FINAL_USING(shader_view, view<shader>);
 
-/// Free Factory Function for Construction of Vertex Shader
-///
-auto vs(auto&&... src) -> shader {
-  return shader{GL_VERTEX_SHADER, std::forward<decltype(src)>(src)...};
-}
+// /// Free Factory Function for Construction of Vertex Shader
+// ///
+// auto vs(auto&&... src) -> shader {
+//   return shader{GL_VERTEX_SHADER, std::forward<decltype(src)>(src)...};
+// }
 
-/// Free Factory Function for Construction of Tessellation Control Shader
-///
-auto tcs(auto&&... src) -> shader {
-  return shader{GL_TESS_CONTROL_SHADER, std::forward<decltype(src)>(src)...};
-}
+// /// Free Factory Function for Construction of Tessellation Control Shader
+// ///
+// auto tcs(auto&&... src) -> shader {
+//   return shader{GL_TESS_CONTROL_SHADER, std::forward<decltype(src)>(src)...};
+// }
 
-/// Free Factory Function for Construction of Tessellation Evaluation Shader
-///
-auto tes(auto&&... src) -> shader {
-  return shader{GL_TESS_EVALUATION_SHADER, std::forward<decltype(src)>(src)...};
-}
+// /// Free Factory Function for Construction of Tessellation Evaluation Shader
+// ///
+// auto tes(auto&&... src) -> shader {
+//   return shader{GL_TESS_EVALUATION_SHADER, std::forward<decltype(src)>(src)...};
+// }
 
-/// Free Factory Function for Construction of Geometry Shader
-///
-auto gs(auto&&... src) -> shader {
-  return shader{GL_GEOMETRY_SHADER, std::forward<decltype(src)>(src)...};
-}
+// /// Free Factory Function for Construction of Geometry Shader
+// ///
+// auto gs(auto&&... src) -> shader {
+//   return shader{GL_GEOMETRY_SHADER, std::forward<decltype(src)>(src)...};
+// }
 
-/// Free Factory Function for Construction of Fragment Shader
-///
-auto fs(auto&&... src) -> shader {
-  return shader{GL_FRAGMENT_SHADER, std::forward<decltype(src)>(src)...};
-}
+// /// Free Factory Function for Construction of Fragment Shader
+// ///
+// auto fs(auto&&... src) -> shader {
+//   return shader{GL_FRAGMENT_SHADER, std::forward<decltype(src)>(src)...};
+// }
 
-/// Free Factory Function for Construction of Compute Shader
-///
-auto cs(auto&&... src) -> shader {
-  return shader{GL_COMPUTE_SHADER, std::forward<decltype(src)>(src)...};
-}
+// /// Free Factory Function for Construction of Compute Shader
+// ///
+// auto cs(auto&&... src) -> shader {
+//   return shader{GL_COMPUTE_SHADER, std::forward<decltype(src)>(src)...};
+// }
 
 }  // namespace demo::opengl

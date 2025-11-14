@@ -28,6 +28,9 @@ opengl_window::opengl_window(uint width, uint height)
 }
 
 viewer::viewer(uint width, uint height) : opengl_window{width, height} {
+  lua.open_libraries(sol::lib::base);
+  lua["quit"] = [this]() { done = true; };
+
   glEnable(GL_DEPTH_TEST);
   // glEnable(GL_MULTISAMPLE);
   // glEnable(GL_POINT_SMOOTH);
@@ -108,6 +111,7 @@ void viewer::run() {
     }
 
     // if (program_rule.check()) build_shader();
+    watch();
     build.update();
     update_shader();
 
@@ -246,6 +250,36 @@ void viewer::update_shader() {
   shader->try_set("count", (uint32)scene.vertices.size());
   shader->try_set("scale", scale);
   shader->shader.use();
+}
+
+void viewer::listen(fdm::address const& domain) {
+  auto msg = fdm::recv(domain);
+  if (not msg) return;
+  println("\n{}:\n---\n{}---", proximate(domain).string(), msg.value());
+  scoped_chdir _{domain.parent_path()};
+  const auto result =
+      lua.safe_script(std::move(msg).value(), sol::script_pass_on_error);
+  if (not result.valid()) println("ERROR:\n{}\n", sol::error{result}.what());
+}
+
+void viewer::watch() {
+  for (const auto& path : paths) {
+    if (not is_directory(path)) {
+      listen(path);
+      continue;
+    }
+    for (const auto& entry : filesystem::recursive_directory_iterator(path)) {
+      if (not entry.is_regular_file()) continue;
+      if (entry.path().extension() != ".lua") continue;
+      listen(entry.path());
+    }
+  }
+}
+
+void viewer::add_path(std::filesystem::path const& path) {
+  paths.push_back(path);
+  std::println("Paths being watched:");
+  for (const auto& path : paths) println("  {}", path.string());
 }
 
 }  // namespace demo

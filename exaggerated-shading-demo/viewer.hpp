@@ -1,8 +1,12 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 //
+#define SOL_ALL_SAFETIES_ON 1
+#include <sol/sol.hpp>
+//
 #include "camera.hpp"
 #include "defaults.hpp"
+#include "fdm.hpp"
 #include "scene.hpp"
 
 namespace demo {
@@ -14,6 +18,8 @@ struct opengl_window {
 
 class viewer : public opengl_window {
   bool done = false;
+  std::vector<std::filesystem::path> paths{};
+  sol::state lua{};
 
   sf::Vector2i mouse_pos{};
 
@@ -79,13 +85,18 @@ class viewer : public opengl_window {
   void shift(const vec2& pixels);
   void zoom(float scale);
 
-  void build_shader();
-  void update_shader();
+  void add_path(std::filesystem::path const& path);
 
  protected:
   void render();
   void on_resize(int width, int height);
   void update_view();
+
+  void build_shader();
+  void update_shader();
+
+  void listen(const fdm::address& domain);
+  void watch();
 };
 
 }  // namespace demo

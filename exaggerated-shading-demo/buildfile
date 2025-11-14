@@ -3,7 +3,9 @@ import libs = \
   glbinding%lib{glbinding} \
   glm%lib{glm} \
   cpptrace%lib{cpptrace} \
-  assimp%lib{assimp}
+  assimp%lib{assimp} \
+  sol2%lib{sol2} \
+  lua%lib{lua}
 
 define glsl: file
 glsl{*}: extension = glsl

@@ -30,6 +30,10 @@ opengl_window::opengl_window(uint width, uint height)
 viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   lua.open_libraries(sol::lib::base);
   lua["quit"] = [this]() { done = true; };
+  lua["set_clear_color"] = [this](float r, float g, float b) {
+    glClearColor(r, g, b, 1.0f);
+  };
+  lua["load_scene"] = [this](std::string_view path) { load_scene(path); };
 
   glEnable(GL_DEPTH_TEST);
   // glEnable(GL_MULTISAMPLE);

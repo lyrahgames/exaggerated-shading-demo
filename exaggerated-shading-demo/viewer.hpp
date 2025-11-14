@@ -78,7 +78,7 @@ class viewer : public opengl_window {
 
   void run();
 
-  void load_scene(const filesystem::path& path);
+  void load_scene(std::filesystem::path const& path);
   void fit_view_to_surface();
 
   void turn(const vec2& angle);

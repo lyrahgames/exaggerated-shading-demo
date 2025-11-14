@@ -79,7 +79,8 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 
   // shader.use();
 
-  build_shader();
+  // build_shader();
+  shader->build();
 }
 
 void viewer::run() {
@@ -97,12 +98,18 @@ void viewer::run() {
         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
         if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
           scale = (scale + 1) % scales;
-          shader.set("scale", scale);
         } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
-          build_shader();
+          // build_shader();
+          // shader->build();
+          // build.target("default")->build();
+          build.target("default", std::move(shader2->rule));
         }
       }
     }
+
+    // if (program_rule.check()) build_shader();
+    build.update();
+    update_shader();
 
     // Get new mouse position and compute movement in space.
     const auto new_mouse_pos = sf::Mouse::getPosition(window);
@@ -158,9 +165,6 @@ void viewer::update_view() {
       std::max(1e-3f * bounding_radius, radius - 10.0f * bounding_radius),
       radius + 10.0f * bounding_radius);
 
-  shader.set("projection", camera.projection_matrix());
-  shader.set("view", camera.view_matrix());
-
   view_should_update = false;
 }
 
@@ -179,9 +183,6 @@ void viewer::load_scene(const filesystem::path& path) {
   assert(vertices.size() == scene.vertices.size());
   elements.assign(scene.faces);
   assert(elements.size() == scene.faces.size());
-
-  shader.set("scales", (uint32)scales);
-  shader.set("count", (uint32)scene.vertices.size());
 
   // vertex_array.format(
   //     opengl::format<scene::vertex>(vertex_buffer, MEMBER(0, position),
@@ -230,12 +231,21 @@ void viewer::zoom(float scale) {
 }
 
 void viewer::build_shader() {
-  auto [exe, status] = program_rule.build();
-  status.print();
-  if (not status.success) return;
-  shader = std::move(exe);
-  shader.use();
-  view_should_update = true;
+  // auto [exe, status] = program_rule.build();
+  // status.print();
+  // if (not status.success) return;
+  // shader = std::move(exe);
+  // shader.use();
+  // view_should_update = true;
+}
+
+void viewer::update_shader() {
+  shader->try_set("projection", camera.projection_matrix());
+  shader->try_set("view", camera.view_matrix());
+  shader->try_set("scales", (uint32)scales);
+  shader->try_set("count", (uint32)scene.vertices.size());
+  shader->try_set("scale", scale);
+  shader->shader.use();
 }
 
 }  // namespace demo

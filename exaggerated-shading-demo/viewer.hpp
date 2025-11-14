@@ -17,6 +17,7 @@ class viewer : public opengl_window {
 
   sf::Vector2i mouse_pos{};
 
+  // Needs to be refactored:
   // World Origin
   vec3 origin;
   // Basis Vectors of Right-Handed Coordinate System
@@ -41,15 +42,30 @@ class viewer : public opengl_window {
   // opengl::buffer vertex_buffer{};
   // opengl::buffer element_buffer{};
   opengl::buffer normals_buffer{};
-  opengl::program shader{};
+  // opengl::program shader{};
 
   opengl::vector<scene::vertex> vertices{};
   opengl::vector<scene::face> elements{};
 
-  opengl::program_build_rule program_rule{{
-      {GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
-      {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs.glsl"}}},
-  }};
+  // opengl::program_build_rule program_rule{{
+  // opengl::program_target shader{{{
+  //     {GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
+  //     {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs.glsl"}}},
+  // }}};
+
+  opengl::build_system build{};
+  std::shared_ptr<opengl::program_target> shader =
+      build.target("default",
+                   {{
+                       opengl::vs("exaggerated-shading-demo/vs.glsl"),
+                       opengl::fs("exaggerated-shading-demo/fs.glsl"),
+                   }});
+  std::shared_ptr<opengl::program_target> shader2 = build.target(
+      "test",
+      {{
+          {GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
+          {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs2.glsl"}}},
+      }});
 
  public:
   viewer(uint width = 500, uint height = 500);
@@ -64,6 +80,7 @@ class viewer : public opengl_window {
   void zoom(float scale);
 
   void build_shader();
+  void update_shader();
 
  protected:
   void render();

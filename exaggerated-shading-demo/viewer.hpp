@@ -86,6 +86,7 @@ class viewer : public opengl_window {
   void on_resize(int width, int height);
   void update_view();
 
+  void init_lua();
   void listen(const fdm::address& domain);
   void watch();
 };

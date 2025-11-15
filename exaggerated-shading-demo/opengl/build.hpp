@@ -7,17 +7,30 @@ struct source {
   std::filesystem::path path{};
   mutable std::filesystem::file_time_type time{};
 
+  source(std::filesystem::path const& p) : path{absolute(p)} {}
+  // source(std::string_view str) : source{std::filesystem::path{str}} {}
+
   auto string() const {
     time = last_write_time(path);
     return string_from_file(path);
   }
 
   bool check() const { return time < last_write_time(path); }
+
+  void print() const { std::println("GLSL source: {}", path.string()); }
 };
 
 struct shader_build_rule {
   GLenum shader_type;
   std::vector<source> sources{};
+
+  // shader_build_rule(GLenum type, std::ranges::input_range auto&& src)
+  //     : shader_type{type},
+  //       sources(std::from_range, std::forward<decltype(src)>(src)) {}
+
+  shader_build_rule(GLenum type, auto&&... args)
+      : shader_type{type},
+        sources{source{std::forward<decltype(args)>(args)}...} {}
 
   auto build() const {
     shader obj{shader_type};
@@ -26,46 +39,28 @@ struct shader_build_rule {
     obj.compile();
     return obj;
   }
+
+  void print() const {
+    std::println("{} shader build rule:", shader_type_string(shader_type));
+    for (auto& src : sources) src.print();
+  }
 };
 
-auto vs(auto&&... src) -> shader_build_rule {
-  return shader_build_rule{
-      GL_VERTEX_SHADER,
-      std::vector<source>{source{std::forward<decltype(src)>(src)}...}};
+auto vs(auto&&... sources) -> shader_build_rule {
+  return shader_build_rule{GL_VERTEX_SHADER,
+                           std::forward<decltype(sources)>(sources)...};
 }
 
-auto tcs(auto&&... src) -> shader_build_rule {
-  return shader_build_rule{
-      GL_TESS_CONTROL_SHADER,
-      std::vector<source>{source{std::forward<decltype(src)>(src)}...}};
-}
-
-auto tes(auto&&... src) -> shader_build_rule {
-  return shader_build_rule{
-      GL_TESS_EVALUATION_SHADER,
-      std::vector<source>{source{std::forward<decltype(src)>(src)}...}};
-}
-
-auto gs(auto&&... src) -> shader_build_rule {
-  return shader_build_rule{
-      GL_GEOMETRY_SHADER,
-      std::vector<source>{source{std::forward<decltype(src)>(src)}...}};
-}
-
-auto fs(auto&&... src) -> shader_build_rule {
-  return shader_build_rule{
-      GL_FRAGMENT_SHADER,
-      std::vector<source>{source{std::forward<decltype(src)>(src)}...}};
-}
-
-auto cs(auto&&... src) -> shader_build_rule {
-  return shader_build_rule{
-      GL_COMPUTE_SHADER,
-      std::vector<source>{source{std::forward<decltype(src)>(src)}...}};
+auto fs(auto&&... sources) -> shader_build_rule {
+  return shader_build_rule{GL_FRAGMENT_SHADER,
+                           std::forward<decltype(sources)>(sources)...};
 }
 
 struct program_build_rule {
   std::vector<shader_build_rule> shaders{};
+
+  program_build_rule(auto&&... args)
+      : shaders{std::forward<decltype(args)>(args)...} {}
 
   struct build_status {
     std::vector<shader> shaders{};
@@ -107,6 +102,10 @@ struct program_build_rule {
         if (src.check()) return true;
     return false;
   }
+
+  void print() const {
+    for (auto& obj : shaders) obj.print();
+  }
 };
 
 // template <typename type>
@@ -125,6 +124,15 @@ struct program_target {
     status.print();
     if (not status.success) return;
     shader = std::move(exe);
+  }
+
+  void set_rule(program_build_rule const& r) {
+    rule = r;
+    build();
+  }
+  void set_rule(program_build_rule&& r) {
+    rule = std::move(r);
+    build();
   }
 
   bool update() {
@@ -148,10 +156,10 @@ struct build_system {
                std::make_shared<program_target>();
   }
 
-  [[nodiscard]] auto target(auto&& name, program_build_rule&& rule)
+  [[nodiscard]] auto target(auto&& name, program_build_rule const& rule)
       -> std::shared_ptr<program_target> {
     auto ptr = target(std::forward<decltype(name)>(name));
-    ptr->rule = std::move(rule);
+    ptr->rule = rule;
     ptr->build();
     return ptr;
   }

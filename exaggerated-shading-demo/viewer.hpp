@@ -62,16 +62,8 @@ class viewer : public opengl_window {
   opengl::build_system build{};
   std::shared_ptr<opengl::program_target> shader =
       build.target("default",
-                   {{
-                       opengl::vs("exaggerated-shading-demo/vs.glsl"),
-                       opengl::fs("exaggerated-shading-demo/fs.glsl"),
-                   }});
-  std::shared_ptr<opengl::program_target> shader2 = build.target(
-      "test",
-      {{
-          {GL_VERTEX_SHADER, {{"exaggerated-shading-demo/vs.glsl"}}},
-          {GL_FRAGMENT_SHADER, {{"exaggerated-shading-demo/fs2.glsl"}}},
-      }});
+                   {opengl::vs("exaggerated-shading-demo/vs.glsl"),
+                    opengl::fs("exaggerated-shading-demo/fs.glsl")});
 
  public:
   viewer(uint width = 500, uint height = 500);

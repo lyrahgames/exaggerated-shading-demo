@@ -113,4 +113,23 @@ inline auto aabb_from(const scene& s) noexcept -> aabb3 {
   return result;
 }
 
+inline auto center(const scene& s) noexcept {
+  vec3 result{};
+  for (const auto& v : s.vertices) result += v.position;
+  return result /= s.vertices.size();
+}
+
+inline auto bounding_radius(const scene& s, vec3 center) noexcept {
+  real radius{};
+  for (const auto& v : s.vertices)
+    radius = std::max(radius, distance(center, v.position));
+  return radius;
+}
+
+inline auto bounding_sphere(const scene& s) noexcept {
+  const auto m = center(s);
+  const auto r = bounding_radius(s, m);
+  return std::tuple{m, r};
+}
+
 }  // namespace demo

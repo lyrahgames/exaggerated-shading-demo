@@ -87,6 +87,16 @@ class camera {
     return *this;
   }
 
+  auto rotate(mat4 const& m) noexcept -> camera {
+    camera result = *this;
+    const auto v = view_matrix();
+    result.x = vec3(vec4(x, 0.0f) * m);
+    result.y = vec3(vec4(y, 0.0f) * m);
+    result.z = vec3(vec4(z, 0.0f) * m);
+    result.o = vec3(vec4(o, 0.0f) * m);
+    return result;
+  }
+
  private:
   vec3 x{1, 0, 0};
   vec3 y{0, 1, 0};

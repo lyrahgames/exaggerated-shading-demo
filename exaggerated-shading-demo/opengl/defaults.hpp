@@ -1,9 +1,11 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <concepts>
 #include <cstdint>
 #include <filesystem>
+#include <numbers>
 #include <print>
 #include <ranges>
 #include <regex>
@@ -53,7 +55,20 @@ using float64 = double;
 
 using real = float32;  // default float type
 
+inline constexpr auto pi = std::numbers::pi_v<real>;
+inline constexpr auto infinity = std::numeric_limits<real>::infinity();
+
 using czstring = const char*;
+
+using glm::dvec2;
+using glm::dvec3;
+using glm::dvec4;
+using glm::ivec2;
+using glm::ivec3;
+using glm::ivec4;
+using glm::vec2;
+using glm::vec3;
+using glm::vec4;
 
 ///
 ///

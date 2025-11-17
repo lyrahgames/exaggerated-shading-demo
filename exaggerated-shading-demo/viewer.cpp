@@ -86,7 +86,13 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 }
 
 void viewer::run() {
+  bool click = false;
+
   while (not done) {
+    // Get new mouse position and compute movement in space.
+    const auto new_mouse_pos = sf::Mouse::getPosition(window);
+    // mouse_pos = new_mouse_pos;
+
     while (const auto event = window.pollEvent()) {
       if (event->is<sf::Event::Closed>())
         done = true;
@@ -105,8 +111,38 @@ void viewer::run() {
           // shader->build();
           // build.target("default")->build();
           // build.target("default", std::move(shader2->rule));
+          trackball_start = sf::Mouse::getPosition(window);
+          backup_cam = camera;
         }
+      } else if (const auto* keyReleased =
+                     event->getIf<sf::Event::KeyReleased>()) {
+        if (keyReleased->scancode == sf::Keyboard::Scancode::Space)
+          trackball_start = {};
+      } else if (const auto* mouse =
+                     event->getIf<sf::Event::MouseButtonPressed>()) {
+        click = true;
+        mouse_pos = new_mouse_pos;
+        std::println("clicking");
+      } else if (const auto* mouse =
+                     event->getIf<sf::Event::MouseButtonReleased>()) {
+        click = false;
+        camui.commit();
+        // mouse_pos = new_mouse_pos;
+        const auto mouse_move = new_mouse_pos - mouse_pos;
+        std::println("mouse move = [{},{}]", mouse_move.x, mouse_move.y);
       }
+    }
+    const auto mouse_move = new_mouse_pos - mouse_pos;
+    // std::println("mouse move = [{},{}]", mouse_move.x, mouse_move.y);
+
+    if (trackball_start) {
+      const auto m1 = trackball_start.value();
+      const auto m2 = sf::Mouse::getPosition(window);
+      const auto x = vec2(2.0f * m1.x / camera.screen_height() - 1,
+                          1.0f - 2.0f * m1.y / camera.screen_height());
+      const auto y = vec2(2.0f * m2.x / camera.screen_height() - 1,
+                          1.0f - 2.0f * m2.y / camera.screen_height());
+      trackball(x, y);
     }
 
     watch();
@@ -114,19 +150,17 @@ void viewer::run() {
     build.update();
     update_shader();
 
-    // Get new mouse position and compute movement in space.
-    const auto new_mouse_pos = sf::Mouse::getPosition(window);
-    const auto mouse_move = new_mouse_pos - mouse_pos;
-    mouse_pos = new_mouse_pos;
-
     if (window.hasFocus()) {
       if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift))
           shift({mouse_move.x, mouse_move.y});
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl))
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
           zoom(0.01 * mouse_move.y);
-        else
+          camui.zoom(0.01 * mouse_move.y);
+        } else {
           turn({-0.01 * mouse_move.x, 0.01 * mouse_move.y});
+          camui.turn({-0.01 * mouse_move.x, 0.01 * mouse_move.y});
+        }
       }
     }
 
@@ -145,6 +179,7 @@ void viewer::render() {
 
 void viewer::on_resize(int width, int height) {
   glViewport(0, 0, width, height);
+  screen.size = {width, height};
   camera.set_screen_resolution(width, height);
   view_should_update = true;
 }
@@ -210,7 +245,23 @@ void viewer::fit_view_to_surface() {
   bounding_radius = box.radius();
   radius = bounding_radius / tan(0.5f * camera.vfov());
   camera.set_near_and_far(1e-5f * radius, 100 * radius);
+
+  const auto [m, r] = bounding_sphere(scene);
+
+  camui.basis.set_origin(m);
+  camui.radius = r;
+
+  pcam.fit(m, r);
+  ocam.fit(m, r);
+
   view_should_update = true;
+
+  // auto print_vec = [](vec4 v) {
+  //   std::println("{>6:.3}{>6:.3}{>6:.3}{>6:.3}", v.x, v.y, v.z, v.w);
+  // };
+  // auto print_mat = [](mat4 m) {
+  //   std::println("{}{}{}{}", m[0], m[1], m[2], m[3]);
+  // };
 }
 
 void viewer::turn(const vec2& angle) {
@@ -231,6 +282,30 @@ void viewer::shift(const vec2& pixels) {
 void viewer::zoom(float scale) {
   radius *= exp(-scale);
   view_should_update = true;
+}
+
+void viewer::trackball(vec2 x, vec2 y) {
+  if (length(x - y) < 1e-3f) return;
+  auto z_projection = [](vec2 p) {
+    const auto d = length(p);
+    constexpr auto r = 0.8f;
+    constexpr auto b = r / std::sqrt(2.0f);
+    return (d < b) ? std::sqrt(r * r - d * d) : (r * r / 2.0f / d);
+  };
+  const auto p = normalize(vec3(x, z_projection(x)));
+  const auto q = normalize(vec3(y, z_projection(y)));
+  const auto pxq = cross(p, q);
+  const auto sin_phi = length(pxq);
+  const auto cos_phi = dot(p, q);
+  const auto phi = std::acos(cos_phi);
+  const auto axis = pxq / sin_phi;
+  const auto rotation =
+      rotate(mat4(1.0f), 2.0f * phi,
+             glm::mat3(transpose(backup_cam.view_matrix())) * axis);
+
+  camera = backup_cam.rotate(rotation);
+
+  // shader->try_set("model", rotate(mat4(1.0f), phi, axis));
 }
 
 void viewer::listen(fdm::address const& domain) {
@@ -273,8 +348,14 @@ void viewer::build_shader() {
 }
 
 void viewer::update_shader() {
-  shader->try_set("projection", camera.projection_matrix());
-  shader->try_set("view", camera.view_matrix());
+  // shader->try_set("projection", camera.projection_matrix());
+  // shader->try_set("view", camera.view_matrix());
+
+  // pcam.basis = camui.transform();
+
+  shader->try_set("projection", projection(ocam, screen));
+  shader->try_set("view", camui.transform());
+
   shader->try_set("scales", (uint32)scales);
   shader->try_set("count", (uint32)scene.vertices.size());
   shader->try_set("scale", scale);

@@ -22,6 +22,7 @@ class viewer : public opengl_window {
   sol::state lua{};
 
   sf::Vector2i mouse_pos{};
+  std::optional<sf::Vector2i> trackball_start{};
 
   // Needs to be refactored:
   // World Origin
@@ -36,6 +37,13 @@ class viewer : public opengl_window {
   float azimuth = 0;
   // Perspective camera
   struct camera camera{};
+  struct camera backup_cam{};
+
+  opengl::viewport screen{};
+  // opengl::coordinate_system world{};
+  opengl::perspective_camera pcam{};
+  opengl::orthographic_camera ocam{};
+  opengl::free_spherical_observer camui{};
 
   float bounding_radius = 1.0f;
   bool view_should_update = true;
@@ -70,6 +78,8 @@ class viewer : public opengl_window {
 
   void run();
 
+  void add_path(std::filesystem::path const& path);
+
   void load_scene(std::filesystem::path const& path);
   void fit_view_to_surface();
 
@@ -77,18 +87,19 @@ class viewer : public opengl_window {
   void shift(const vec2& pixels);
   void zoom(float scale);
 
-  void add_path(std::filesystem::path const& path);
-  void build_shader();
-  void update_shader();
+  void trackball(vec2 x, vec2 y);
 
  protected:
+  void init_lua();
+  void listen(const fdm::address& domain);
+  void watch();
+
   void render();
   void on_resize(int width, int height);
   void update_view();
 
-  void init_lua();
-  void listen(const fdm::address& domain);
-  void watch();
+  void build_shader();
+  void update_shader();
 };
 
 }  // namespace demo

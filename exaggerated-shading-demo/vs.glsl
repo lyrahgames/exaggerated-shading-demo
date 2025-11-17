@@ -1,7 +1,8 @@
 #version 460 core
 
 uniform mat4 projection;
-uniform mat4 view;
+uniform mat4 view = mat4(1.0);
+uniform mat4 model = mat4(1.0);
 
 uniform vec4 light = vec4(1, -1, -0.1, 0.0);
 
@@ -20,7 +21,7 @@ layout (std430, binding = 0) readonly buffer smoothed_normals {
 out float intensity;
 
 void main() {
-  gl_Position = projection * view * vec4(p, 1.0);
+  gl_Position = projection * view * model * vec4(p, 1.0);
 
   // normal = vec3(view * vec4(n, 0.0));
   // normal = vec3(view * normals[scale * count + gl_VertexID]);

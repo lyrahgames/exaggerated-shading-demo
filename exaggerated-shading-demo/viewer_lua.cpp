@@ -74,6 +74,17 @@ void viewer::init_lua() {
         //                            return x.as<opengl::shader_build_rule>();
         //                          })));
       });
+
+  lua["scene_from_file"] = [](std::string_view path) {
+    return scene_from(std::filesystem::path{path});
+  };
+
+  lua["show"] = [this](struct scene const& scene) { assign(scene); };
+  // lua.new_usertype<struct scene>(
+  //     "scene",  //
+  //     "scene_from_file", sol::factories([](std::string_view path) {
+  //       return scene_from{std::filesystem::path{path}};
+  //     }));
 }
 
 }  // namespace demo

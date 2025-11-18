@@ -18,45 +18,44 @@ struct opengl_window {
 
 class viewer : public opengl_window {
   bool done = false;
+
   std::vector<std::filesystem::path> paths{};
   sol::state lua{};
 
-  sf::Vector2i mouse_pos{};
-  std::optional<sf::Vector2i> trackball_start{};
-
-  // Needs to be refactored:
-  // World Origin
-  vec3 origin;
-  // Basis Vectors of Right-Handed Coordinate System
-  vec3 up{0, 1, 0};
-  vec3 right{1, 0, 0};
-  vec3 front{0, 0, 1};
-  // Spherical/Horizontal Coordinates of Camera
-  float radius = 10;
-  float altitude = 0;
-  float azimuth = 0;
-  // Perspective camera
-  struct camera camera{};
-  struct camera backup_cam{};
-
   opengl::viewport screen{};
-  // opengl::coordinate_system world{};
-  opengl::perspective_camera pcam{};
-  opengl::orthographic_camera ocam{};
-  opengl::free_spherical_observer camui{};
+  opengl::frame world{};
+  opengl::perspective_camera cam{};
 
-  float bounding_radius = 1.0f;
-  bool view_should_update = true;
+  // interaction
+  struct trackball_interaction {
+    vec2 from;
+    opengl::frame init;
+    constexpr trackball_interaction(opengl::camera_base const& camera,
+                                    vec2 pos) noexcept
+        : init{camera}, from{pos} {}
+    constexpr void operator()(opengl::camera_base& camera, vec2 to) noexcept {
+      camera.trackball(init, 2 * (to - from));
+    }
+  };
+  struct bell_trackball_interaction {
+    vec2 from;
+    opengl::frame init;
+    constexpr bell_trackball_interaction(opengl::camera_base const& camera,
+                                         vec2 pos) noexcept
+        : init{camera}, from{pos} {}
+    constexpr void operator()(opengl::camera_base& camera, vec2 to) noexcept {
+      camera.bell_trackball(init, from, to);
+    }
+  };
+  std::optional<std::variant<trackball_interaction, bell_trackball_interaction>>
+      trackball{};
 
   struct scene scene{};
   size_t scales = 10;
   uint32 scale = 0;
 
   opengl::vertex_array vertex_array{};
-  // opengl::buffer vertex_buffer{};
-  // opengl::buffer element_buffer{};
   opengl::buffer normals_buffer{};
-  // opengl::program shader{};
 
   opengl::vector<scene::vertex> vertices{};
   opengl::vector<scene::face> elements{};
@@ -75,19 +74,10 @@ class viewer : public opengl_window {
 
  public:
   viewer(uint width = 500, uint height = 500);
-
-  void run();
-
   void add_path(std::filesystem::path const& path);
-
   void load_scene(std::filesystem::path const& path);
-  void fit_view_to_surface();
-
-  void turn(const vec2& angle);
-  void shift(const vec2& pixels);
-  void zoom(float scale);
-
-  void trackball(vec2 x, vec2 y);
+  void assign(struct scene const& scene);
+  void run();
 
  protected:
   void init_lua();
@@ -96,9 +86,7 @@ class viewer : public opengl_window {
 
   void render();
   void on_resize(int width, int height);
-  void update_view();
 
-  void build_shader();
   void update_shader();
 };
 

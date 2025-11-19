@@ -4,11 +4,18 @@ namespace demo {
 
 void viewer::init_lua() {
   lua.open_libraries(sol::lib::base);
+
   lua["quit"] = [this]() { done = true; };
+
+  lua["scene_from_file"] = [](std::string_view path) {
+    return scene_from(std::filesystem::path{path});
+  };
+
+  lua["show"] = [this](struct scene const& scene) { show(scene); };
+
   lua["set_clear_color"] = [this](float r, float g, float b) {
     glClearColor(r, g, b, 1.0f);
   };
-  lua["load_scene"] = [this](std::string_view path) { load_scene(path); };
 
   auto assign_sources = [](opengl::shader_build_rule& obj,
                            sol::variadic_args args) {
@@ -74,17 +81,6 @@ void viewer::init_lua() {
         //                            return x.as<opengl::shader_build_rule>();
         //                          })));
       });
-
-  lua["scene_from_file"] = [](std::string_view path) {
-    return scene_from(std::filesystem::path{path});
-  };
-
-  lua["show"] = [this](struct scene const& scene) { assign(scene); };
-  // lua.new_usertype<struct scene>(
-  //     "scene",  //
-  //     "scene_from_file", sol::factories([](std::string_view path) {
-  //       return scene_from{std::filesystem::path{path}};
-  //     }));
 }
 
 }  // namespace demo

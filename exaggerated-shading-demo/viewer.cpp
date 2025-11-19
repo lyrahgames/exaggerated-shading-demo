@@ -91,42 +91,7 @@ void viewer::add_path(std::filesystem::path const& path) {
   for (const auto& path : paths) println("  {}", path.string());
 }
 
-void viewer::load_scene(const filesystem::path& path) {
-  scene = scene_from(path);
-  scene.generate_edges();
-  scene.smooth_normals(scales);
-
-  const auto [m, r] = bounding_sphere(scene);
-  world.move_to(m);
-  cam.fit(world, r);
-
-  // vertex_buffer.assign(scene.vertices);
-  // element_buffer.assign(scene.faces);
-  normals_buffer.assign(scene.smoothed_normals);
-
-  vertices.assign(scene.vertices);
-  assert(vertices.size() == scene.vertices.size());
-  elements.assign(scene.faces);
-  assert(elements.size() == scene.faces.size());
-
-  // vertex_array.format(
-  //     opengl::format<scene::vertex>(vertex_buffer, MEMBER(0, position),
-  //                                   MEMBER(1, normal)),
-  //     opengl::buffer_format{
-  //         .buffer = normals_buffer,
-  //         .offset = (scales - 1) * sizeof(vec4) * scene.vertices.size(),
-  //         .stride = sizeof(vec4),
-  //         .attributes = {opengl::attr<vec4>(2, 0)}});
-
-  vertex_array.format(
-      opengl::format<scene::vertex>(vertices.buffer(),  //
-                                    MEMBER(0, position), MEMBER(1, normal)),
-      opengl::offset_format<vec4>(
-          normals_buffer, (scales - 1) * sizeof(vec4) * scene.vertices.size(),
-          ACCESS(2, x, x)));
-}
-
-void viewer::assign(struct scene const& scene) {
+void viewer::show(struct scene const& scene) {
   const auto [m, r] = bounding_sphere(scene);
   world.move_to(m);
   cam.fit(world, r);
@@ -145,76 +110,25 @@ void viewer::assign(struct scene const& scene) {
 
 void viewer::run() {
   while (not done) {
-    const auto mouse_tmp = sf::Mouse::getPosition(window);
-    const auto mouse = vec2(mouse_tmp.x, mouse_tmp.y);
-
-    while (const auto event = window.pollEvent()) {
-      if (event->is<sf::Event::Closed>())
-        done = true;
-      else if (const auto* resized = event->getIf<sf::Event::Resized>())
-        on_resize(resized->size.x, resized->size.y);
-      else if (const auto* scrolled =
-                   event->getIf<sf::Event::MouseWheelScrolled>()) {
-        cam.zoom(0.1 * scrolled->delta);
-      } else if (const auto* keyPressed =
-                     event->getIf<sf::Event::KeyPressed>()) {
-        if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
-        if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
-        } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
-        }
-      } else if (const auto* keyReleased =
-                     event->getIf<sf::Event::KeyReleased>()) {
-        if (keyReleased->scancode == sf::Keyboard::Scancode::Space) {
-        }
-      } else if (const auto* mouse_event =
-                     event->getIf<sf::Event::MouseButtonPressed>()) {
-        switch (mouse_event->button) {
-          case sf::Mouse::Button::Left:
-            trackball = trackball_interaction{cam, screen.space(mouse)};
-            break;
-          case sf::Mouse::Button::Right:
-            trackball = bell_trackball_interaction{cam, screen.space(mouse)};
-            break;
-        }
-      } else if (const auto* mouse_event =
-                     event->getIf<sf::Event::MouseButtonReleased>()) {
-        switch (mouse_event->button) {
-          case sf::Mouse::Button::Left:
-            trackball = {};
-            break;
-          case sf::Mouse::Button::Right:
-            trackball = {};
-            break;
-        }
-      }
-    }
-
-    // if (window.hasFocus()) {
-    //   if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-    //     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
-    //     } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
-    //       cam.zoom(0.01 * mouse_move.y);
-    //     } else {
-    //     }
-    //   }
-    // }
-
-    // if (trackball) trackball.value()(cam, screen.space(mouse));
-    if (trackball)
-      std::visit(
-          [this, mouse](auto& action) {
-            std::invoke(action, cam, screen.space(mouse));
-          },
-          trackball.value());
-
     watch();
-    // if (program_rule.check()) build_shader();
+    process_events();
     build.update();
     update_shader();
-
     render();
     window.display();
   }
+}
+
+void viewer::eval_lua(std::string_view str) {
+  const auto result = lua.safe_script(str, sol::script_pass_on_error);
+  if (not result.valid())
+    std::println("ERROR:\n{}\n", sol::error{result}.what());
+}
+
+void viewer::eval_lua_file(std::filesystem::path const& path) {
+  const auto result = lua.safe_script_file(path, sol::script_pass_on_error);
+  if (not result.valid())
+    std::println("ERROR:\n{}\n", sol::error{result}.what());
 }
 
 void viewer::watch() {
@@ -236,9 +150,73 @@ void viewer::listen(fdm::address const& domain) {
   if (not msg) return;
   println("\n{}:\n---\n{}---", proximate(domain).string(), msg.value());
   scoped_chdir _{domain.parent_path()};
-  const auto result =
-      lua.safe_script(std::move(msg).value(), sol::script_pass_on_error);
-  if (not result.valid()) println("ERROR:\n{}\n", sol::error{result}.what());
+  // const auto result =
+  //     lua.safe_script(std::move(msg).value(), sol::script_pass_on_error);
+  // if (not result.valid()) println("ERROR:\n{}\n", sol::error{result}.what());
+  eval_lua(std::move(msg).value());
+}
+
+void viewer::process_events() {
+  const auto mouse_tmp = sf::Mouse::getPosition(window);
+  const auto mouse = vec2(mouse_tmp.x, mouse_tmp.y);
+
+  while (const auto event = window.pollEvent()) {
+    if (event->is<sf::Event::Closed>())
+      done = true;
+    else if (const auto* resized = event->getIf<sf::Event::Resized>())
+      on_resize(resized->size.x, resized->size.y);
+    else if (const auto* scrolled =
+                 event->getIf<sf::Event::MouseWheelScrolled>()) {
+      cam.zoom(0.1 * scrolled->delta);
+    } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+      if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
+      if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
+      } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
+      }
+    } else if (const auto* keyReleased =
+                   event->getIf<sf::Event::KeyReleased>()) {
+      if (keyReleased->scancode == sf::Keyboard::Scancode::Space) {
+      }
+    } else if (const auto* mouse_event =
+                   event->getIf<sf::Event::MouseButtonPressed>()) {
+      switch (mouse_event->button) {
+        case sf::Mouse::Button::Left:
+          trackball = trackball_interaction{cam, screen.space(mouse)};
+          break;
+        case sf::Mouse::Button::Right:
+          trackball = bell_trackball_interaction{cam, screen.space(mouse)};
+          break;
+      }
+    } else if (const auto* mouse_event =
+                   event->getIf<sf::Event::MouseButtonReleased>()) {
+      switch (mouse_event->button) {
+        case sf::Mouse::Button::Left:
+          trackball = {};
+          break;
+        case sf::Mouse::Button::Right:
+          trackball = {};
+          break;
+      }
+    }
+  }
+
+  // if (window.hasFocus()) {
+  //   if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+  //     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
+  //     } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+  //       cam.zoom(0.01 * mouse_move.y);
+  //     } else {
+  //     }
+  //   }
+  // }
+
+  // if (trackball) trackball.value()(cam, screen.space(mouse));
+  if (trackball)
+    std::visit(
+        [this, mouse](auto& action) {
+          std::invoke(action, cam, screen.space(mouse));
+        },
+        trackball.value());
 }
 
 void viewer::render() {
@@ -251,30 +229,6 @@ void viewer::on_resize(int width, int height) {
   glViewport(0, 0, width, height);
   screen.size = {width, height};
 }
-
-// void viewer::trackball(vec2 x, vec2 y) {
-//   if (length(x - y) < 1e-3f) return;
-//   auto z_projection = [](vec2 p) {
-//     const auto d = length(p);
-//     constexpr auto r = 0.8f;
-//     constexpr auto b = r / std::sqrt(2.0f);
-//     return (d < b) ? std::sqrt(r * r - d * d) : (r * r / 2.0f / d);
-//   };
-//   const auto p = normalize(vec3(x, z_projection(x)));
-//   const auto q = normalize(vec3(y, z_projection(y)));
-//   const auto pxq = cross(p, q);
-//   const auto sin_phi = length(pxq);
-//   const auto cos_phi = dot(p, q);
-//   const auto phi = std::acos(cos_phi);
-//   const auto axis = pxq / sin_phi;
-//   const auto rotation =
-//       rotate(mat4(1.0f), 2.0f * phi,
-//              glm::mat3(transpose(backup_cam.view_matrix())) * axis);
-
-//   camera = backup_cam.rotate(rotation);
-
-//   // shader->try_set("model", rotate(mat4(1.0f), phi, axis));
-// }
 
 void viewer::update_shader() {
   // shader->try_set("projection", camera.projection_matrix());

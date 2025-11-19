@@ -3,7 +3,7 @@
 int main(int argc, char* argv[]) {
   demo::viewer viewer{};
 
-  if (argc > 1) viewer.load_scene(argv[1]);
+  for (int i = 1; i < argc; ++i) viewer.eval_lua_file(argv[i]);
 
   viewer.add_path(std::filesystem::current_path());
 

@@ -74,15 +74,20 @@ class viewer : public opengl_window {
 
  public:
   viewer(uint width = 500, uint height = 500);
+
   void add_path(std::filesystem::path const& path);
-  void load_scene(std::filesystem::path const& path);
-  void assign(struct scene const& scene);
+  void eval_lua(std::string_view str);
+  void eval_lua_file(std::filesystem::path const& path);
+
+  void show(struct scene const& scene);
   void run();
 
  protected:
   void init_lua();
-  void listen(const fdm::address& domain);
   void watch();
+  void listen(const fdm::address& domain);
+
+  void process_events();
 
   void render();
   void on_resize(int width, int height);

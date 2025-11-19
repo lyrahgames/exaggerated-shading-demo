@@ -19,7 +19,7 @@ struct opengl_window {
 class viewer : public opengl_window {
   bool done = false;
 
-  std::vector<std::filesystem::path> paths{};
+  std::vector<std::filesystem::path> lua_live_paths{};
   sol::state lua{};
 
   opengl::viewport screen{};
@@ -75,7 +75,6 @@ class viewer : public opengl_window {
  public:
   viewer(uint width = 500, uint height = 500);
 
-  void add_path(std::filesystem::path const& path);
   void eval_lua(std::string_view str);
   void eval_lua_file(std::filesystem::path const& path);
 

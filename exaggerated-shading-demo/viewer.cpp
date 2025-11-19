@@ -85,12 +85,6 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   shader->build();
 }
 
-void viewer::add_path(std::filesystem::path const& path) {
-  paths.push_back(path);
-  std::println("Paths being watched:");
-  for (const auto& path : paths) println("  {}", path.string());
-}
-
 void viewer::show(struct scene const& scene) {
   const auto [m, r] = bounding_sphere(scene);
   world.move_to(m);
@@ -126,13 +120,14 @@ void viewer::eval_lua(std::string_view str) {
 }
 
 void viewer::eval_lua_file(std::filesystem::path const& path) {
+  scoped_chdir _{path.parent_path()};
   const auto result = lua.safe_script_file(path, sol::script_pass_on_error);
   if (not result.valid())
     std::println("ERROR:\n{}\n", sol::error{result}.what());
 }
 
 void viewer::watch() {
-  for (const auto& path : paths) {
+  for (auto const& path : lua_live_paths) {
     if (not is_directory(path)) {
       listen(path);
       continue;

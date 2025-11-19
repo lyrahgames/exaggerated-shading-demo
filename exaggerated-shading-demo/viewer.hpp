@@ -18,7 +18,8 @@ struct opengl_window {
 
 class viewer : public opengl_window {
   bool done = false;
-
+  bool waiting = false;
+  bool lua_running = false;
   std::vector<std::filesystem::path> lua_live_paths{};
   sol::state lua{};
 
@@ -86,8 +87,8 @@ class viewer : public opengl_window {
   void watch();
   void listen(const fdm::address& domain);
 
+  void update();
   void process_events();
-
   void render();
   void on_resize(int width, int height);
 

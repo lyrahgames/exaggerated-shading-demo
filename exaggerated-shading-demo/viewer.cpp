@@ -105,25 +105,35 @@ void viewer::show(struct scene const& scene) {
 void viewer::run() {
   while (not done) {
     watch();
-    process_events();
-    build.update();
-    update_shader();
-    render();
-    window.display();
+    update();
   }
 }
 
+void viewer::update() {
+  process_events();
+  build.update();
+  update_shader();
+  render();
+  window.display();
+}
+
 void viewer::eval_lua(std::string_view str) {
+  lua_running = true;
   const auto result = lua.safe_script(str, sol::script_pass_on_error);
+  lua_running = false;
   if (not result.valid())
     std::println("ERROR:\n{}\n", sol::error{result}.what());
+  waiting = false;
 }
 
 void viewer::eval_lua_file(std::filesystem::path const& path) {
   scoped_chdir _{path.parent_path()};
+  lua_running = true;
   const auto result = lua.safe_script_file(path, sol::script_pass_on_error);
+  lua_running = false;
   if (not result.valid())
     std::println("ERROR:\n{}\n", sol::error{result}.what());
+  waiting = false;
 }
 
 void viewer::watch() {
@@ -164,7 +174,12 @@ void viewer::process_events() {
                  event->getIf<sf::Event::MouseWheelScrolled>()) {
       cam.zoom(0.1 * scrolled->delta);
     } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-      if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) done = true;
+      if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
+        if (lua_running)
+          waiting = true;
+        else
+          done = true;
+      }
       if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
       } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
       }

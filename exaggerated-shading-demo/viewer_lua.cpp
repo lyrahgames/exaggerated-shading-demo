@@ -45,6 +45,12 @@ void viewer::init_lua() {
     for (auto const& path : lua_live_paths) std::println("{}", path.string());
   };
 
+  auto viewer_table = lua["viewer"].get_or_create<sol::table>();
+  viewer_table["quit"] = [this] { done = true; };
+  viewer_table["done"] = [this] { return done; };
+  viewer_table["waiting"] = [this] { return waiting; };
+  viewer_table["update"] = [this] { update(); };
+
   lua["scene_from_file"] = [](std::string_view path) {
     return scene_from(std::filesystem::path{path});
   };

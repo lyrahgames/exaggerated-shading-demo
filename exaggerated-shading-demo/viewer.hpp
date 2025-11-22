@@ -51,7 +51,6 @@ class viewer : public opengl_window {
   std::optional<std::variant<trackball_interaction, bell_trackball_interaction>>
       trackball{};
 
-  // struct scene scene{};
   size_t scales = 10;
   uint32 scale = 0;
 
@@ -75,10 +74,10 @@ class viewer : public opengl_window {
                        opengl::fs("exaggerated-shading-demo/fs.glsl"),
                    });
 
-  GLuint fbo;
-  GLuint texture;
+  opengl::framebuffer fbo{};
+  opengl::texture2 texture{};
+  opengl::renderbuffer renderbuffer{};
   vec2 texture_size{128, 128};
-  GLuint renderbuffer;
   std::shared_ptr<opengl::program_target> texture_shader =
       build.target("texture",
                    {

@@ -23,6 +23,8 @@ struct viewport {
     const auto t = 2 * (pixels - vec2(offset)) / size.y;
     return vec2{t.x - aspect_ratio(), 1 - t.y};
   }
+
+  void use() const noexcept { glViewport(offset.x, offset.y, size.x, size.y); }
 };
 
 constexpr auto width(viewport screen) noexcept {
@@ -51,6 +53,10 @@ constexpr auto bottom(viewport screen) noexcept {
 
 constexpr auto aspect_ratio(viewport screen) noexcept {
   return screen.aspect_ratio();
+}
+
+inline void use(viewport screen) noexcept {
+  screen.use();
 }
 
 }  // namespace demo::opengl

@@ -84,32 +84,16 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   // build_shader();
   shader->build();
 
-  glGenFramebuffers(1, &fbo);
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-  glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texture_size.x, texture_size.y, 0,
-               GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glGenRenderbuffers(1, &renderbuffer);
-  glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, texture_size.x,
-                        texture_size.y);
-
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                         texture, 0);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                            GL_RENDERBUFFER, renderbuffer);
-
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+  texture.alloc(1, GL_RGBA8, texture_size.x, texture_size.y);
+  texture.set_min_filter_to_nearest();
+  texture.set_mag_filter_to_nearest();
+  texture.clamp_to_edges();
+  renderbuffer.alloc(texture_size.x, texture_size.y);
+  fbo.attach(texture);
+  fbo.attach(renderbuffer);
+  if (glCheckNamedFramebufferStatus(fbo.native_handle(), GL_FRAMEBUFFER) !=
+      GL_FRAMEBUFFER_COMPLETE)
     std::println("ERROR: Incomplete Framebuffer");
-
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void viewer::show(struct scene const& scene) {
@@ -256,8 +240,10 @@ void viewer::process_events() {
 }
 
 void viewer::render() {
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport(screen.offset.x, screen.offset.y, screen.size.x, screen.size.y);
+  // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  use(screen);
+
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // shader->try_set("projection", camera.projection_matrix());
@@ -271,28 +257,23 @@ void viewer::render() {
   shader->try_set("count", GLuint(vertices.size()));
   shader->try_set("scale", scale);
   shader->shader.use();
-  // glViewport(0, 0, width, height);
-  glViewport(screen.offset.x, screen.offset.y, screen.size.x, screen.size.y);
   vertex_array.bind();
   glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  use(opengl::viewport{{0, 0}, texture_size});
+
+  fbo.bind();
   const auto mouse = vec2(sf::Mouse::getPosition(window).x,
                           screen.size.y - sf::Mouse::getPosition(window).y);
   const auto pick = glm::pickMatrix(mouse, vec2{20, 20}, ivec4(screen));
   shader->try_set("projection", pick * cam.projection(screen));
-  glViewport(0, 0, texture_size.x, texture_size.y);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
 
   //
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  opengl::viewport magnifier_area{{0, 0}, texture_size};
-  glViewport(magnifier_area.offset.x, magnifier_area.offset.y,
-             magnifier_area.size.x, magnifier_area.size.y);
+  opengl::default_framebuffer.bind();
   texture_shader->shader.use();
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, texture);
+  texture.bind_to_unit(0);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 

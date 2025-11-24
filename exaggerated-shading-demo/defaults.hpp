@@ -32,6 +32,9 @@ using float64 = double;
 //
 using real = float32;  // default float type
 
+using glm::dvec2;
+using glm::dvec3;
+using glm::dvec4;
 using glm::ivec2;
 using glm::ivec3;
 using glm::ivec4;

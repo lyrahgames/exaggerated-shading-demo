@@ -58,4 +58,35 @@ STRICT_FINAL_USING(framebuffer, unique<framebuffer_base>);
 ///
 STRICT_FINAL_USING(framebuffer_view, view<framebuffer>);
 
+namespace current_framebuffer {
+
+inline void set(default_framebuffer_t fbo) noexcept {
+  fbo.bind();
+}
+
+inline void set(framebuffer_view fbo) noexcept {
+  fbo.bind();
+}
+
+inline void set_clear_color(float r,
+                            float g,
+                            float b,
+                            float a = 1.0f) noexcept {
+  glClearColor(r, g, b, a);
+}
+
+inline void set_clear_color(vec4 color) noexcept {
+  set_clear_color(color.r, color.g, color.b, color.a);
+}
+
+inline void set_clear_color(vec3 color) noexcept {
+  set_clear_color(color.r, color.g, color.b);
+}
+
+inline void clear() noexcept {
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+
+}  // namespace current_framebuffer
+
 }  // namespace demo::opengl

@@ -59,9 +59,6 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   //                           .attributes = {opengl::attr<vec4>(2, 0)}});
 
   // vertex_array.set_element_buffer(element_buffer);
-  vertex_array.set_element_buffer(elements.buffer());
-
-  normals_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
   //   czstring vertex_shader_src = (const char[]){
   // #embed "vs.glsl" suffix(, )
@@ -101,16 +98,69 @@ void viewer::show(struct scene const& scene) {
   world.move_to(m);
   cam.fit(world, r);
 
-  normals_buffer.assign(scene.smoothed_normals);
+  // normals_buffer.assign(scene.smoothed_normals);
   vertices.assign(scene.vertices);
   elements.assign(scene.faces);
+  normals.assign(scene.smoothed_normals);
 
-  vertex_array.format(
-      opengl::format<scene::vertex>(vertices.buffer(),  //
-                                    MEMBER(0, position), MEMBER(1, normal)),
-      opengl::offset_format<vec4>(
-          normals_buffer, (scales - 1) * sizeof(vec4) * scene.vertices.size(),
-          ACCESS(2, x, x)));
+  // vertex_array.format(
+  //     opengl::format<scene::vertex>(vertices.buffer(),  //
+  //                                   MEMBER(0, position), MEMBER(1, normal)),
+  //     opengl::offset_format<vec4>(
+  //         normals_buffer, (scales - 1) * sizeof(vec4) * scene.vertices.size(),
+  //         ACCESS(2, x, x)));
+  // vertex_array.set_element_buffer(elements.buffer());
+
+  normals.buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
+
+  // breakpoint(opengl::vertex_vector_format<vec4>(0));
+  // breakpoint(opengl::vertex_vector_format<dvec4>(0));
+  // breakpoint(opengl::vertex_vector_format<ivec4>(0));
+
+  // static_assert(opengl::accessor_of<decltype([](auto const& x) -> auto const& {
+  //                                     return x.position;
+  //                                   }),
+  //                                   scene::vertex>);
+  // breakpoint(opengl::vertex_vector_format<scene::vertex>(
+  //     std::tuple{0, [](auto const& x) -> auto const& { return x.position; }},
+  //     ATTRIBUTE_MEMBER(1, normal),  //
+  //     FORMAT_ATTRIBUTE_MEMBER(int, 1, normal)));
+
+  // breakpoint(opengl::meta::vertex_buffer<1, vec4>());
+  // breakpoint(opengl::meta::vertex_buffer<scene::vertex>(
+  //     opengl::meta::attribute<0>(
+  //         [](auto const& x) -> auto const& { return x.position; }),
+  //     opengl::meta::attribute<1, double>(
+  //         [](auto const& x) -> auto const& { return x.normal; })));
+
+  // opengl::meta::primitive(
+  //     elements.buffer(),                           //
+  //     opengl::meta::vertex_buffer<scene::vertex>(  //
+  //         opengl::meta::attribute<0>(
+  //             [](auto const& x) -> auto const& { return x.position; }),  //
+  //         opengl::meta::attribute<1>(
+  //             [](auto const& x) -> auto const& { return x.normal; })  //
+  //         ));
+
+  constexpr auto primitive =
+      opengl::primitive(opengl::vertex_buffer<scene::vertex>(
+                            opengl::attribute<0>(MEMBER_VAR(position)),
+                            opengl::attribute<1>(MEMBER_VAR(normal))),
+                        opengl::vertex_buffer<2, vec4>());
+  auto e = opengl::vector_view{elements};
+  auto v = opengl::vector_span{vertices};
+  auto n = opengl::vector_span{normals, (scales - 1) * vertices.size()};
+  primitive.format(vertex_array, e);
+  primitive.template format<0>(vertex_array, v);
+  primitive.template format<1>(vertex_array, n);
+  // primitive.format(vertex_array.native_handle(),
+  //                  elements.buffer().native_handle());
+  // primitive.template format<0>(vertex_array.native_handle(),  //
+  //                              vertices.buffer().native_handle(), 0);
+  // primitive.template format<1>(
+  //     vertex_array.native_handle(),  //
+  //     normals_buffer.native_handle(),
+  //     (scales - 1) * sizeof(vec4) * scene.vertices.size());
 }
 
 void viewer::run() {
@@ -244,13 +294,20 @@ void viewer::render() {
 
   use(screen);
 
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  opengl::current_framebuffer::clear();
 
   // shader->try_set("projection", camera.projection_matrix());
   // shader->try_set("view", camera.view_matrix());
   // pcam.basis = camui.transform();
   // shader->try_set("projection", projection(ocam, screen));
   // shader->try_set("view", camui.transform());
+
+  // shader: viewport
+  // shader: mouse position
+  // shader: time
+
   shader->try_set("projection", cam.projection(screen));
   shader->try_set("view", cam.view());
   shader->try_set("scales", (uint32)scales);
@@ -262,16 +319,15 @@ void viewer::render() {
 
   use(opengl::viewport{{0, 0}, texture_size});
 
-  fbo.bind();
+  opengl::current_framebuffer::set(fbo);
+  opengl::current_framebuffer::clear();
   const auto mouse = vec2(sf::Mouse::getPosition(window).x,
                           screen.size.y - sf::Mouse::getPosition(window).y);
   const auto pick = glm::pickMatrix(mouse, vec2{20, 20}, ivec4(screen));
   shader->try_set("projection", pick * cam.projection(screen));
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
 
-  //
-  opengl::default_framebuffer.bind();
+  opengl::current_framebuffer::set(opengl::default_framebuffer);
   texture_shader->shader.use();
   texture.bind_to_unit(0);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);

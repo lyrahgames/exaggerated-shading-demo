@@ -53,6 +53,9 @@ using intptr = GLintptr;
 using float32 = float;
 using float64 = double;
 
+using f32 = float32;
+using f64 = float64;
+
 using real = float32;  // default float type
 
 inline constexpr auto pi = std::numbers::pi_v<real>;

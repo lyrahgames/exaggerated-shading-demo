@@ -5,12 +5,6 @@ namespace demo::opengl {
 
 ///
 ///
-template <typename type, typename value_type>
-concept range_of = std::ranges::contiguous_range<type> &&
-                   std::same_as<std::ranges::range_value_t<type>, value_type>;
-
-///
-///
 template <typename type>
 struct vector_base {
   using value_type = type;

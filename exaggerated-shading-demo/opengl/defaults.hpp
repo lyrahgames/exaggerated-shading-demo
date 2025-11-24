@@ -318,4 +318,10 @@ concept stable_string_range =
     (std::ranges::borrowed_range<std::ranges::range_value_t<type>> ||
      std::is_reference_v<std::ranges::range_reference_t<type>>);
 
+///
+///
+template <typename type, typename value_type>
+concept range_of = std::ranges::contiguous_range<type> &&
+                   std::same_as<std::ranges::range_value_t<type>, value_type>;
+
 }  // namespace demo::opengl

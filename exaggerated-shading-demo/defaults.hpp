@@ -48,6 +48,8 @@ inline constexpr auto infinity = numeric_limits<real>::infinity();
 
 template <typename... types>
 void breakpoint() = delete;
+template <auto... values>
+void breakpoint() = delete;
 template <typename... types>
 void breakpoint(types...) = delete;
 

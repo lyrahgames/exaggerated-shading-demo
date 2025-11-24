@@ -57,9 +57,9 @@ class viewer : public opengl_window {
   opengl::vertex_array vertex_array{};
   // opengl::buffer normals_buffer{};
 
-  opengl::vector<scene::vertex> vertices{};
-  opengl::vector<scene::face> elements{};
-  opengl::vector<vec4> normals{};
+  opengl::immutable_vector<scene::vertex> vertices{};
+  opengl::immutable_vector<scene::face> elements{};
+  opengl::immutable_vector<vec4> normals{};
 
   // opengl::program_build_rule program_rule{{
   // opengl::program_target shader{{{

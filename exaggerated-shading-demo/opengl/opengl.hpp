@@ -5,6 +5,7 @@
 #include "draw.hpp"
 #include "frame.hpp"
 #include "framebuffer.hpp"
+#include "immutable_vector.hpp"
 #include "primitive.hpp"
 #include "program.hpp"
 #include "renderbuffer.hpp"

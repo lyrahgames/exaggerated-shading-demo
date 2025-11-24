@@ -251,6 +251,13 @@ struct basic_primitive_format : vertex_buffers... {
   }
 
   template <std::size_t binding>
+  void format(vertex_array_view va,
+              buffer_view buffer,
+              GLintptr offset = 0) const noexcept {
+    vertex_buffers...[binding] ::format(va, binding, buffer, offset);
+  }
+
+  template <std::size_t binding>
   using vertex_buffer = vertex_buffers...[binding];
   template <std::size_t binding>
   using assign_type = typename vertex_buffer<binding>::assign_type;

@@ -52,9 +52,27 @@ struct buffer_base : object {
   ///
   ///
   auto size() const noexcept -> size_type {
-    GLint s;
-    glGetNamedBufferParameteriv(handle, GL_BUFFER_SIZE, &s);
+    GLint64 s = 0;
+    glGetNamedBufferParameteri64v(handle, GL_BUFFER_SIZE, &s);
     return s;
+  }
+
+  ///
+  ///
+  void immutable_assign(size_type size,
+                        const void* data,
+                        BufferStorageMask flags = {}) const noexcept {
+    glNamedBufferStorage(native_handle(), size, data, flags);
+  }
+  void immutable_assign(size_type size,
+                        const auto* data,
+                        BufferStorageMask flags = {}) const noexcept {
+    immutable_assign(size * sizeof(data[0]), static_cast<const void*>(data),
+                     flags);
+  }
+  void immutable_assign(std::ranges::contiguous_range auto&& range,
+                        BufferStorageMask flags = {}) const noexcept {
+    immutable_assign(std::ranges::size(range), std::ranges::data(range), flags);
   }
 
   ///

@@ -1,5 +1,5 @@
 #pragma once
-#include "program.hpp"
+#include "resources/program.hpp"
 
 namespace demo::opengl {
 

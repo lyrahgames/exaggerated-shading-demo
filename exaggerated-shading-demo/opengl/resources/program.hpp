@@ -14,11 +14,9 @@ concept program_like = similar_to<type, program_base>;
 
 ///
 ///
-struct program_base : object {
-  /// Base Type and Constructors
-  ///
-  using base = object;
-  using base::base;
+struct program_base : identifier {
+  using base = identifier;
+  using base::base;  // Allow construction from `native_handle_type`.
 
   using view_type = program_view;
 
@@ -33,7 +31,7 @@ struct program_base : object {
   ///
   static void destroy(program_base& resource) noexcept {
     // A value of 0 for 'handle' will be silently ignored.
-    glDeleteProgram(resource.handle);
+    glDeleteProgram(resource.native_handle());
   }
 
   /// Checks whether the shader program represents a valid OpenGL shader program.
@@ -291,11 +289,11 @@ struct program_base : object {
 
 ///
 ///
-STRICT_FINAL_USING(program, unique<program_base>);
+STRICT_FINAL_USING(program, unique_resource<program_base>);
 
 ///
 ///
-STRICT_FINAL_USING(program_view, view<program>);
+STRICT_FINAL_USING(program_view, resource_view<program>);
 
 /// Free Factory Function for Shader Program Building
 /// Given shaders with source code, this functions compiles, links, and validates.

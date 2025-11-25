@@ -149,93 +149,93 @@ inline auto string_from_file(std::filesystem::path const& path) -> std::string {
   return result;
 };
 
-///
-///
-template <typename type>
-struct identifier {
-  using native_handle_type = type;
+// ///
+// ///
+// template <typename type>
+// struct identifier {
+//   using native_handle_type = type;
 
- protected:
-  native_handle_type handle{};
+//  protected:
+//   native_handle_type handle{};
 
- public:
-  constexpr identifier() noexcept = default;
+//  public:
+//   constexpr identifier() noexcept = default;
 
-  /// Allow only explicit construction from native handle.
-  ///
-  explicit constexpr identifier(native_handle_type value) noexcept
-      : handle{value} {}
+//   /// Allow only explicit construction from native handle.
+//   ///
+//   explicit constexpr identifier(native_handle_type value) noexcept
+//       : handle{value} {}
 
-  /// Receive native handle to interact with the OpenGL API directly.
-  ///
-  constexpr auto native_handle() const noexcept -> native_handle_type {
-    return handle;
-  }
+//   /// Receive native handle to interact with the OpenGL API directly.
+//   ///
+//   constexpr auto native_handle() const noexcept -> native_handle_type {
+//     return handle;
+//   }
 
-  friend constexpr auto operator<=>(identifier x,
-                                    identifier y) noexcept = default;
-};
+//   friend constexpr auto operator<=>(identifier x,
+//                                     identifier y) noexcept = default;
+// };
 
-///
-///
-STRICT_USING(object, identifier<GLuint>);
+// ///
+// ///
+// STRICT_USING(object, identifier<GLuint>);
 
-///
-///
-template <typename type>
-struct unique : type {
-  using identifier = type;
-  using base = identifier;
-  using base::handle;
-  using base::valid;
+// ///
+// ///
+// template <typename type>
+// struct unique : type {
+//   using identifier = type;
+//   using base = identifier;
+//   using base::handle;
+//   using base::valid;
 
-  ///
-  ///
-  unique(auto&&... args)
-    requires requires {
-      {
-        base::create(std::forward<decltype(args)>(args)...)
-      } -> std::same_as<base>;
-    }
-      : base{base::create(std::forward<decltype(args)>(args)...)} {
-    if (not valid())
-      throw resource_acquisition_error{"Failed to acquire OpenGL resource."};
-  }
+//   ///
+//   ///
+//   unique(auto&&... args)
+//     requires requires {
+//       {
+//         base::create(std::forward<decltype(args)>(args)...)
+//       } -> std::same_as<base>;
+//     }
+//       : base{base::create(std::forward<decltype(args)>(args)...)} {
+//     if (not valid())
+//       throw resource_acquisition_error{"Failed to acquire OpenGL resource."};
+//   }
 
-  /// Destructor is not virtual on purpose to reduce overhead.
-  /// Using it in polymorphic contexts is strongly discouraged.
-  ///
-  ~unique() noexcept { base::destroy(*this); }
+//   /// Destructor is not virtual on purpose to reduce overhead.
+//   /// Using it in polymorphic contexts is strongly discouraged.
+//   ///
+//   ~unique() noexcept { base::destroy(*this); }
 
-  /// Make the type move-only:
-  /// Copying is NOT allowed and moving does not throw.
-  ///
-  constexpr unique(const unique&) = delete;
-  constexpr unique& operator=(const unique&) = delete;
-  // Moving must implemented manually.
-  // otherwise, `other` is not invalidated and the objects gets destroyed right away.
-  constexpr unique(unique&& other) noexcept : base{other.native_handle()} {
-    other.handle = 0;
-  }
-  constexpr unique& operator=(unique&& other) noexcept {
-    using std::swap;
-    swap(handle, other.handle);
-    return *this;
-  }
-};
+//   /// Make the type move-only:
+//   /// Copying is NOT allowed and moving does not throw.
+//   ///
+//   constexpr unique(const unique&) = delete;
+//   constexpr unique& operator=(const unique&) = delete;
+//   // Moving must implemented manually.
+//   // otherwise, `other` is not invalidated and the objects gets destroyed right away.
+//   constexpr unique(unique&& other) noexcept : base{other.native_handle()} {
+//     other.handle = 0;
+//   }
+//   constexpr unique& operator=(unique&& other) noexcept {
+//     using std::swap;
+//     swap(handle, other.handle);
+//     return *this;
+//   }
+// };
 
-template <typename type>
-struct view : type::identifier {
-  using viewed_type = type;
-  using identifier = typename viewed_type::identifier;
-  using base = identifier;
+// template <typename type>
+// struct view : type::identifier {
+//   using viewed_type = type;
+//   using identifier = typename viewed_type::identifier;
+//   using base = identifier;
 
-  /// Views are implicitly constructible from lvalue references.
-  /// However, they explicitly forbid construction from rvalues.
-  ///
-  constexpr view(const viewed_type& x) noexcept : base{x} {}
-  constexpr view(const viewed_type&&) = delete;
-};
+//   /// Views are implicitly constructible from lvalue references.
+//   /// However, they explicitly forbid construction from rvalues.
+//   ///
+//   constexpr view(const viewed_type& x) noexcept : base{x} {}
+//   constexpr view(const viewed_type&&) = delete;
+// };
 
 ///
 ///

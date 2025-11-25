@@ -17,9 +17,9 @@ namespace demo::opengl {
 
 ///
 ///
-struct texture_base : object {
-  using base = object;
-  using base::base;
+struct texture_base : identifier {
+  using base = identifier;
+  using base::base;  // Allow construction from `native_handle_type`.
 
   ///
   ///
@@ -32,27 +32,26 @@ struct texture_base : object {
   ///
   ///
   static void destroy(texture_base& resource) noexcept {
-    glDeleteTextures(1, &resource.handle);
+    auto handle = resource.native_handle();
+    glDeleteTextures(1, &handle);
   }
 
+  /// Check whether the identifier currently corresponds
+  /// to an initialized OpenGL texture object.
   ///
-  ///
-  bool valid() const noexcept { return glIsTexture(handle) == GL_TRUE; }
+  bool valid() const noexcept {
+    return glIsTexture(native_handle()) == GL_TRUE;
+  }
 };
 
 struct texture2_base : texture_base {
   using base = texture_base;
-  using base::base;
 
   ///
   ///
   static auto create() -> texture2_base {
-    return texture2_base{base::create(GL_TEXTURE_2D).native_handle()};
+    return texture2_base{base::create(GL_TEXTURE_2D)};
   }
-
-  ///
-  ///
-  using base::destroy;
 
   void alloc(GLsizei levels,
              GLenum format,
@@ -87,10 +86,10 @@ struct texture2_base : texture_base {
 
 ///
 ///
-STRICT_FINAL_USING(texture2, unique<texture2_base>);
+STRICT_FINAL_USING(texture2, unique_resource<texture2_base>);
 
 ///
 ///
-STRICT_FINAL_USING(texture2_view, view<texture2>);
+STRICT_FINAL_USING(texture2_view, resource_view<texture2>);
 
 }  // namespace demo::opengl

@@ -1,9 +1,65 @@
 #pragma once
-#include "draw.hpp"
-#include "vector.hpp"
-#include "vertex_array.hpp"
+// #include "vector.hpp"
+#include "resources/vertex_array.hpp"
 
 namespace demo::opengl {
+
+template <typename T>
+struct attribute_traits {};
+
+template <>
+struct attribute_traits<float> {
+  static constexpr GLint size = 1;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_traits<vec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_traits<vec3> {
+  static constexpr GLint size = 3;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_traits<vec4> {
+  static constexpr GLint size = 4;
+  static constexpr GLenum type = GL_FLOAT;
+};
+
+template <>
+struct attribute_traits<double> {
+  static constexpr GLint size = 1;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
+template <>
+struct attribute_traits<dvec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
+template <>
+struct attribute_traits<dvec4> {
+  static constexpr GLint size = 4;
+  static constexpr GLenum type = GL_DOUBLE;
+};
+
+template <>
+struct attribute_traits<ivec2> {
+  static constexpr GLint size = 2;
+  static constexpr GLenum type = GL_INT;
+};
+
+template <>
+struct attribute_traits<ivec4> {
+  static constexpr GLint size = 4;
+  static constexpr GLenum type = GL_INT;
+};
 
 template <typename type>
 concept attribute_type_format_like = requires(type value) {
@@ -186,8 +242,11 @@ constexpr auto attribute_projection(
 template <typename type, attribute_format_like... attributes>
 struct basic_vertex_buffer_format : attributes... {
   using value_type = type;
-  using assign_type = vector_span<value_type>;
+
+  // using assign_type = vector_span<value_type>;
+
   static consteval auto stride() noexcept { return sizeof(value_type); }
+
   void format(GLuint vaobj,
               GLuint binding,
               GLuint buffer,
@@ -196,17 +255,19 @@ struct basic_vertex_buffer_format : attributes... {
                               buffer, offset, stride());
     (attributes::format(vaobj, binding), ...);
   }
-  void format(vertex_array_view va,
-              GLuint binding,
-              buffer_view buffer,
-              GLintptr offset = 0) const noexcept {
-    format(va.native_handle(), binding, buffer.native_handle(), offset);
-  }
-  void format(vertex_array_view va,
-              GLuint binding,
-              vector_span<value_type> vertices) const noexcept {
-    format(va, binding, vertices.buffer(), vertices.byte_offset());
-  }
+
+  // void format(vertex_array_view va,
+  //             GLuint binding,
+  //             buffer_view buffer,
+  //             GLintptr offset = 0) const noexcept {
+  //   format(va.native_handle(), binding, buffer.native_handle(), offset);
+  // }
+
+  // void format(vertex_array_view va,
+  //             GLuint binding,
+  //             vector_span<value_type> vertices) const noexcept {
+  //   format(va, binding, vertices.buffer(), vertices.byte_offset());
+  // }
 };
 
 template <GLuint l, typename projection>
@@ -250,37 +311,37 @@ struct basic_primitive_format : vertex_buffers... {
     vertex_buffers...[binding] ::format(vaobj, binding, buffer, offset);
   }
 
-  template <std::size_t binding>
-  void format(vertex_array_view va,
-              buffer_view buffer,
-              GLintptr offset = 0) const noexcept {
-    vertex_buffers...[binding] ::format(va, binding, buffer, offset);
-  }
+  // template <std::size_t binding>
+  // void format(vertex_array_view va,
+  //             buffer_view buffer,
+  //             GLintptr offset = 0) const noexcept {
+  //   vertex_buffers...[binding] ::format(va, binding, buffer, offset);
+  // }
 
-  template <std::size_t binding>
-  using vertex_buffer = vertex_buffers...[binding];
-  template <std::size_t binding>
-  using assign_type = typename vertex_buffer<binding>::assign_type;
+  // template <std::size_t binding>
+  // using vertex_buffer = vertex_buffers...[binding];
+  // template <std::size_t binding>
+  // using assign_type = typename vertex_buffer<binding>::assign_type;
 
-  template <std::size_t binding>
-  void format(vertex_array_view va,
-              assign_type<binding> vertices) const noexcept {
-    vertex_buffers...[binding] ::format(va, binding, vertices);
-  }
+  // template <std::size_t binding>
+  // void format(vertex_array_view va,
+  //             assign_type<binding> vertices) const noexcept {
+  //   vertex_buffers...[binding] ::format(va, binding, vertices);
+  // }
 
   void format(GLuint vaobj, GLuint element_buffer) const noexcept {
     glVertexArrayElementBuffer(vaobj, element_buffer);
   }
 
-  void format(vertex_array_view va, buffer_view elements) const noexcept {
-    format(va.native_handle(), elements.native_handle());
-  }
+  // void format(vertex_array_view va, buffer_view elements) const noexcept {
+  //   format(va.native_handle(), elements.native_handle());
+  // }
 
-  template <typename element_type>
-  void format(vertex_array_view va,
-              vector_view<element_type> elements) const noexcept {
-    format(va, elements.buffer());
-  }
+  // template <typename element_type>
+  // void format(vertex_array_view va,
+  //             vector_view<element_type> elements) const noexcept {
+  //   format(va, elements.buffer());
+  // }
 
   // template <typename element_type, GLuint... bindings>
   // void format(

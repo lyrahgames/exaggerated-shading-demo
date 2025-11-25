@@ -47,16 +47,14 @@ constexpr auto shader_type_string(GLenum shader_type) -> czstring {
 
 ///
 ///
-struct shader_base : object {
-  /// Base Type and Constructors
-  ///
-  using base = object;
-  using base::base;
+struct shader_base : identifier {
+  using base = identifier;
+  using base::base;  // Allow construction from `native_handle_type`.
 
   using view_type = shader_view;
   // static auto view() -> shader_view;
 
-  static auto create(GLenum shader_type) -> shader_base {
+  static auto create(GLenum shader_type) noexcept -> shader_base {
     return shader_base{glCreateShader(shader_type)};
   }
 
@@ -64,7 +62,7 @@ struct shader_base : object {
   ///
   static void destroy(shader_base& resource) noexcept {
     // A value of 0 for 'handle' will be silently ignored.
-    glDeleteShader(resource.handle);
+    glDeleteShader(resource.native_handle());
   }
 
   /// Checks whether the shader object represents a valid OpenGL shader object.
@@ -233,8 +231,8 @@ struct shader_base : object {
 
 ///
 ///
-struct shader final : unique<shader_base> {
-  using base = unique<shader_base>;
+struct shader final : unique_resource<shader_base> {
+  using base = unique_resource<shader_base>;
 
   shader(GLenum shader_type, auto&&... src) : base{shader_type} {
     if constexpr (sizeof...(src))
@@ -244,7 +242,7 @@ struct shader final : unique<shader_base> {
 
 ///
 ///
-STRICT_FINAL_USING(shader_view, view<shader>);
+STRICT_FINAL_USING(shader_view, resource_view<shader>);
 
 // /// Free Factory Function for Construction of Vertex Shader
 // ///

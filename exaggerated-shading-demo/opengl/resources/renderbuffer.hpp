@@ -5,9 +5,9 @@ namespace demo::opengl {
 
 ///
 ///
-struct renderbuffer_base : object {
-  using base = object;
-  using base::base;
+struct renderbuffer_base : identifier {
+  using base = identifier;
+  using base::base;  // Allow construction from `native_handle_type`.
 
   ///
   ///
@@ -20,12 +20,15 @@ struct renderbuffer_base : object {
   ///
   ///
   static void destroy(renderbuffer_base& resource) noexcept {
-    glDeleteRenderbuffers(1, &resource.handle);
+    auto handle = resource.native_handle();
+    glDeleteRenderbuffers(1, &handle);
   }
 
   ///
   ///
-  bool valid() const noexcept { return glIsRenderbuffer(handle) == GL_TRUE; }
+  bool valid() const noexcept {
+    return glIsRenderbuffer(native_handle()) == GL_TRUE;
+  }
 
   ///
   ///
@@ -37,10 +40,10 @@ struct renderbuffer_base : object {
 
 ///
 ///
-STRICT_FINAL_USING(renderbuffer, unique<renderbuffer_base>);
+STRICT_FINAL_USING(renderbuffer, unique_resource<renderbuffer_base>);
 
 ///
 ///
-STRICT_FINAL_USING(renderbuffer_view, view<renderbuffer>);
+STRICT_FINAL_USING(renderbuffer_view, resource_view<renderbuffer>);
 
 }  // namespace demo::opengl

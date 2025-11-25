@@ -40,26 +40,6 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   glLineWidth(0.5f);
   glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
-  // vertex_array.format(
-  //     opengl::mapping<scene::vertex>(vertex_buffer,  //
-  //                                    MEMBER(0, position), MEMBER(1, normal)),
-  //     opengl::mapping<scene::color>(color_buffer, 3));
-
-  // vertex_array.set_vertex_buffer(
-  //     0, opengl::format<scene::vertex>(vertex_buffer,        //
-  //                                      MEMBER(0, position),  //
-  //                                      MEMBER(1, normal)));
-
-  // vertex_array.format(
-  //     opengl::format<scene::vertex>(vertex_buffer, MEMBER(0, position),
-  //                                   MEMBER(1, normal)),
-  //     opengl::buffer_format{.buffer = normals_buffer,
-  //                           .offset = (scales - 1) * sizeof(vec4),
-  //                           .stride = sizeof(vec4),
-  //                           .attributes = {opengl::attr<vec4>(2, 0)}});
-
-  // vertex_array.set_element_buffer(element_buffer);
-
   //   czstring vertex_shader_src = (const char[]){
   // #embed "vs.glsl" suffix(, )
   //       0,
@@ -91,9 +71,6 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   if (glCheckNamedFramebufferStatus(fbo.native_handle(), GL_FRAMEBUFFER) !=
       GL_FRAMEBUFFER_COMPLETE)
     std::println("ERROR: Incomplete Framebuffer");
-
-  // breakpoint<GLsizeiptr, GLintptr, GLuint>();
-  // breakpoint<sizeof(GLsizeiptr), sizeof(GLintptr), sizeof(GLuint)>();
 }
 
 void viewer::show(struct scene const& scene) {
@@ -105,9 +82,9 @@ void viewer::show(struct scene const& scene) {
   // vertices.assign(scene.vertices);
   // elements.assign(scene.faces);
   // normals.assign(scene.smoothed_normals);
-  vertices = opengl::immutable_vector{scene.vertices};
-  elements = opengl::immutable_vector{scene.faces};
-  normals = opengl::immutable_vector{scene.smoothed_normals};
+  vertices = opengl::const_vector{scene.vertices};
+  elements = opengl::const_vector{scene.faces};
+  normals = opengl::const_vector{scene.smoothed_normals};
 
   // vertex_array.format(
   //     opengl::format<scene::vertex>(vertices.buffer(),  //
@@ -117,7 +94,9 @@ void viewer::show(struct scene const& scene) {
   //         ACCESS(2, x, x)));
   // vertex_array.set_element_buffer(elements.buffer());
 
-  normals.buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
+  // normals.buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,
+                   normals.buffer().native_handle());
 
   // breakpoint(opengl::vertex_vector_format<vec4>(0));
   // breakpoint(opengl::vertex_vector_format<dvec4>(0));
@@ -153,16 +132,24 @@ void viewer::show(struct scene const& scene) {
                             opengl::attribute<0>(MEMBER_VAR(position)),
                             opengl::attribute<1>(MEMBER_VAR(normal))),
                         opengl::vertex_buffer<2, vec4>());
+  primitive.format(vertex_array.native_handle(),
+                   elements.buffer().native_handle());
+  primitive.template format<0>(vertex_array.native_handle(),
+                               vertices.buffer().native_handle());
+  primitive.template format<1>(vertex_array.native_handle(),
+                               normals.buffer().native_handle(),
+                               (scales - 1) * vertices.size());
+
   // auto e = opengl::vector_view{elements};
   // auto v = opengl::vector_span{vertices};
   // auto n = opengl::vector_span{normals, (scales - 1) * vertices.size()};
   // primitive.format(vertex_array, e);
   // primitive.template format<0>(vertex_array, v);
   // primitive.template format<1>(vertex_array, n);
-  primitive.format(vertex_array, elements.buffer());
-  primitive.template format<0>(vertex_array, vertices.buffer());
-  primitive.template format<1>(vertex_array, normals.buffer(),
-                               (scales - 1) * vertices.size());
+  // primitive.format(vertex_array, elements.buffer());
+  // primitive.template format<0>(vertex_array, vertices.buffer());
+  // primitive.template format<1>(vertex_array, normals.buffer(),
+  //                              (scales - 1) * vertices.size());
   // primitive.format(vertex_array.native_handle(),
   //                  elements.buffer().native_handle());
   // primitive.template format<0>(vertex_array.native_handle(),  //

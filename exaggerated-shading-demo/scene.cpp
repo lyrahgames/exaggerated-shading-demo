@@ -104,6 +104,8 @@ auto scene_from(const filesystem::path& path) -> scene {
     face_offset += input->mMeshes[mid]->mNumFaces;
   }
 
+  scene.generate_edges();
+  scene.smooth_normals(10);
   return scene;
 }
 

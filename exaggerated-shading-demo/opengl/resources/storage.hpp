@@ -41,19 +41,8 @@ STRICT_FINAL_USING(storage_view, resource_view<storage>);
 
 ///
 ///
-constexpr auto resource_view_cast(storage const& data) noexcept
-    -> storage_view {
-  return static_cast<storage_view>(data);
-}
+using storage_span = basic_buffer_span<storage_identifier>;
 
-///
-///
-template <typename type>
-concept storage_like = similar_to<type, storage_identifier>;
-
-///
-///
-template <typename type>
-concept storage_view_like = storage_like<type> && resource_view_like<type>;
+static_assert(std::same_as<storage::identifier, storage_identifier>);
 
 }  // namespace demo::opengl

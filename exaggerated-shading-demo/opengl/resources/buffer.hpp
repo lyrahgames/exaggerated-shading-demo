@@ -69,6 +69,63 @@ struct buffer_identifier : identifier {
   // }
 };
 
+///
+///
+template <typename type>
+concept buffer_identifier_like = std::derived_from<type, buffer_identifier> &&
+                                 (not owning_resource_like<type>);
+
+///
+///
+template <typename type>
+concept buffer_span_like =
+    buffer_identifier_like<typename type::buffer_type> && requires(type value) {
+      { value.buffer() } -> std::derived_from<buffer_identifier>;
+      { value.offset() } -> std::convertible_to<offset_type>;
+      { value.size() } -> std::convertible_to<size_type>;
+    };
+
+///
+///
+template <buffer_identifier_like type>
+struct basic_buffer_span {
+  using buffer_type = type;
+
+  constexpr basic_buffer_span(buffer_type data,
+                              offset_type offset,
+                              size_type size) noexcept
+      : _buffer{data}, _offset{offset}, _size{size} {}
+
+  constexpr basic_buffer_span(
+      buffer_type data,
+      std::pair<offset_type, offset_type> range) noexcept
+      : _buffer{data},
+        _offset{range.first},
+        _size{range.second - range.first} {}
+
+  constexpr basic_buffer_span(buffer_type data, offset_type first = 0) noexcept
+      : basic_buffer_span{data, {first, data.size()}} {}
+
+  template <buffer_identifier_like cast_buffer>
+    requires std::derived_from<buffer_type, cast_buffer>
+  constexpr operator basic_buffer_span<cast_buffer>() noexcept {
+    return {_buffer, _offset, _size};
+  }
+
+  constexpr auto offset() const noexcept -> offset_type { return _offset; }
+  constexpr auto size() const noexcept -> size_type { return _size; }
+  constexpr auto buffer() const noexcept -> buffer_type { return _buffer; }
+
+ private:
+  buffer_type _buffer;
+  offset_type _offset;
+  size_type _size;
+};
+
+///
+///
+using buffer_span = basic_buffer_span<buffer_identifier>;
+
 // ///
 // ///
 // template <typename type>

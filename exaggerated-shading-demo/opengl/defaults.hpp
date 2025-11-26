@@ -324,4 +324,11 @@ template <typename type, typename value_type>
 concept range_of = std::ranges::contiguous_range<type> &&
                    std::same_as<std::ranges::range_value_t<type>, value_type>;
 
+///
+///
+template <typename type, typename value_type>
+concept contiguous_range_of =
+    std::ranges::contiguous_range<type> &&
+    std::same_as<std::ranges::range_value_t<type>, value_type>;
+
 }  // namespace demo::opengl

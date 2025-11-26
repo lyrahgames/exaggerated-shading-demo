@@ -55,10 +55,10 @@ class viewer : public opengl_window {
   uint32 scale = 0;
 
   opengl::vertex_array vertex_array{};
-  opengl::const_vector<scene::vertex> vertices{};
-  opengl::const_vector<scene::face> elements{};
-  opengl::const_vector<vec4> normals{};
-  std::unique_ptr<opengl::legacy_buffer> element_buffer{};
+  opengl::device_vector<scene::vertex> vertices{};
+  opengl::device_vector<scene::face> elements{};
+  opengl::device_vector<vec4> normals{};
+  // std::unique_ptr<opengl::legacy_buffer> element_buffer{};
 
   // opengl::program_build_rule program_rule{{
   // opengl::program_target shader{{{

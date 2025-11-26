@@ -82,11 +82,30 @@ void viewer::show(struct scene const& scene) {
   // vertices.assign(scene.vertices);
   // elements.assign(scene.faces);
   // normals.assign(scene.smoothed_normals);
-  vertices = opengl::const_vector{scene.vertices};
-  elements = opengl::const_vector{scene.faces};
-  normals = opengl::const_vector{scene.smoothed_normals};
+  // vertices = opengl::const_vector{scene.vertices};
+  // elements = opengl::const_vector{scene.faces};
+  // normals = opengl::const_vector{scene.smoothed_normals};
 
-  element_buffer = std::make_unique<opengl::legacy_buffer>(scene.faces);
+  vertices = scene.vertices;
+  elements = scene.faces;
+  normals = scene.smoothed_normals;
+
+  // breakpoint(opengl::vector_span{vertices, 0, 1});
+  // auto nv = opengl::vector_span{normals, };
+  // breakpoint(opengl::vector_span{normals,  //
+  //                                (scales - 1) * vertices.size(),
+  //                                vertices.size()});
+
+  // auto v = opengl::device_vector_view{scene.vertices};
+
+  // element_buffer = std::make_unique<opengl::legacy_buffer>(scene.faces);
+
+  //
+  // opengl::device_vector dv{scene.vertices};
+  // assert(dv.size() == vertices.size());
+  // assert(opengl::device_vector_view{dv}.size() == vertices.size());
+  // opengl::legacy_vector lv{scene.vertices};
+  // assert(lv.size() == vertices.size());
 
   // vertex_array.format(
   //     opengl::format<scene::vertex>(vertices.buffer(),  //
@@ -136,8 +155,8 @@ void viewer::show(struct scene const& scene) {
                         opengl::vertex_buffer<2, vec4>());
   // primitive.format(vertex_array.native_handle(),
   //                  elements.buffer().native_handle());
-  // vertex_array.set_elements(elements.buffer());
-  vertex_array.set_elements(*element_buffer);
+  vertex_array.set_elements(elements.buffer());
+  // vertex_array.set_elements(*element_buffer);
   primitive.template format<0>(vertex_array.native_handle(),
                                vertices.buffer().native_handle());
   primitive.template format<1>(vertex_array.native_handle(),

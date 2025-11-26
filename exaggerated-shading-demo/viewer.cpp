@@ -86,6 +86,8 @@ void viewer::show(struct scene const& scene) {
   elements = opengl::const_vector{scene.faces};
   normals = opengl::const_vector{scene.smoothed_normals};
 
+  element_buffer = std::make_unique<opengl::legacy_buffer>(scene.faces);
+
   // vertex_array.format(
   //     opengl::format<scene::vertex>(vertices.buffer(),  //
   //                                   MEMBER(0, position), MEMBER(1, normal)),
@@ -132,8 +134,10 @@ void viewer::show(struct scene const& scene) {
                             opengl::attribute<0>(MEMBER_VAR(position)),
                             opengl::attribute<1>(MEMBER_VAR(normal))),
                         opengl::vertex_buffer<2, vec4>());
-  primitive.format(vertex_array.native_handle(),
-                   elements.buffer().native_handle());
+  // primitive.format(vertex_array.native_handle(),
+  //                  elements.buffer().native_handle());
+  // vertex_array.set_elements(elements.buffer());
+  vertex_array.set_elements(*element_buffer);
   primitive.template format<0>(vertex_array.native_handle(),
                                vertices.buffer().native_handle());
   primitive.template format<1>(vertex_array.native_handle(),

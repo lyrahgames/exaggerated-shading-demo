@@ -11,21 +11,21 @@ inline constexpr default_framebuffer_t default_framebuffer{};
 
 ///
 ///
-struct framebuffer_base : identifier {
+struct framebuffer_identifier : identifier {
   using base = identifier;
   using base::base;  // Allow construction from `native_handle_type`.
 
   /// Default Constructor
   ///
-  static auto create() noexcept -> framebuffer_base {
+  static auto create() noexcept -> framebuffer_identifier {
     native_handle_type handle;
     glCreateFramebuffers(1, &handle);
-    return framebuffer_base{handle};
+    return framebuffer_identifier{handle};
   }
 
   ///
   ///
-  static void destroy(framebuffer_base& resource) noexcept {
+  static void destroy(framebuffer_identifier& resource) noexcept {
     auto handle = resource.native_handle();
     glDeleteFramebuffers(1, &handle);
   }
@@ -56,7 +56,7 @@ struct framebuffer_base : identifier {
 
 ///
 ///
-STRICT_FINAL_USING(framebuffer, unique_resource<framebuffer_base>);
+STRICT_FINAL_USING(framebuffer, unique_resource<framebuffer_identifier>);
 
 ///
 ///

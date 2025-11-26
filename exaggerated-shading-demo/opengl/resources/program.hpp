@@ -5,16 +5,16 @@ namespace demo::opengl {
 
 struct program;
 struct program_view;
-struct program_base;
+struct program_identifier;
 
 ///
 ///
 template <typename type>
-concept program_like = similar_to<type, program_base>;
+concept program_like = similar_to<type, program_identifier>;
 
 ///
 ///
-struct program_base : identifier {
+struct program_identifier : identifier {
   using base = identifier;
   using base::base;  // Allow construction from `native_handle_type`.
 
@@ -23,13 +23,13 @@ struct program_base : identifier {
   /// The default constructor obtains a valid OpenGL program handle.
   /// If acquiring the handle fails, it throws a 'resource_acquisition_error'.
   ///
-  static auto create() -> program_base {
-    return program_base{glCreateProgram()};
+  static auto create() -> program_identifier {
+    return program_identifier{glCreateProgram()};
   }
 
   /// The destructor does not throw and marks the OpenGL program handle for deletion.
   ///
-  static void destroy(program_base& resource) noexcept {
+  static void destroy(program_identifier& resource) noexcept {
     // A value of 0 for 'handle' will be silently ignored.
     glDeleteProgram(resource.native_handle());
   }
@@ -289,7 +289,7 @@ struct program_base : identifier {
 
 ///
 ///
-STRICT_FINAL_USING(program, unique_resource<program_base>);
+STRICT_FINAL_USING(program, unique_resource<program_identifier>);
 
 ///
 ///

@@ -117,13 +117,22 @@ struct unique_resource : resource_base {
   }
 };
 
+/// Simple tag type whose derived types will be assumed to be view types.
+///
+struct resource_view_tag {};
+
+/// Definition of generic resource view types.
+///
+template <typename type>
+concept resource_view_like = similar_to<type, resource_view_tag>;
+
 /// Class template to wrap resource types as a lightweight view type.
 /// Copy and move operations are allowed but they are not default constructible.
 /// Objects of this type template should be forwarded by value.
 /// Views can only be created from lvalues of their respective resource types.
 ///
 template <typename type>
-struct resource_view : type::identifier {
+struct resource_view : resource_view_tag, type::identifier {
   using resource_type = type;
   using identifier = typename resource_type::identifier;
   using base = identifier;

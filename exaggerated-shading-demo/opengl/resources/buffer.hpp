@@ -3,32 +3,27 @@
 
 namespace demo::opengl {
 
+/// Resource base that identifies an OpenGL buffer object.
+/// Provides factory functions for destruction and default construction
+/// as well as basic API calls specific to buffer objects.
 ///
-///
-struct buffer_base : identifier {
+struct buffer_identifier : identifier {
   using base = identifier;
   using base::base;  // Allow construction from `native_handle_type`.
 
-  /// The default constructor obtains a valid OpenGL buffer handle.
+  /// Factory for Default Constructor
   ///
-  static auto create() noexcept -> buffer_base {
-    // With 'glCreateBuffers', created buffer objects
-    // are already bound to an unspecified target.
+  static auto create() noexcept -> buffer_identifier {
     native_handle_type handle;
     glCreateBuffers(1, &handle);
-    return buffer_base{handle};
+    return buffer_identifier{handle};
   }
 
-  /// After a buffer object is deleted, it has no contents,
-  /// and its name is free for reuse (for example by glGenBuffers).
-  /// If a buffer object that is currently bound is deleted, the
-  /// binding reverts to 0 (the absence of any buffer object).
+  /// Factory for Destruction
   ///
-  static void destroy(buffer_base& resource) noexcept {
-    // Silently ignores zero and names that do
-    // not correspond to existing buffer objects.
+  static void destroy(buffer_identifier& resource) noexcept {
     auto handle = resource.native_handle();
-    glDeleteBuffers(1, &handle);
+    glDeleteBuffers(1, &handle);  // `0` is silently ignored.
   }
 
   /// Check whether the identifier currently corresponds
@@ -73,5 +68,21 @@ struct buffer_base : identifier {
   //   glBindBufferBase(target, index, native_handle());
   // }
 };
+
+// ///
+// ///
+// template <typename type>
+// concept buffer_like = similar_to<type, buffer_identifier>;
+
+// ///
+// ///
+// template <typename type>
+// concept buffer_view_like = buffer_like<type> && resource_view_like<type>;
+
+// ///
+// ///
+// template <typename type>
+// concept owning_buffer_like =
+//     buffer_like<type> && (not resource_view_like<type>);
 
 }  // namespace demo::opengl

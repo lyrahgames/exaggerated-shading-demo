@@ -5,12 +5,12 @@ namespace demo::opengl {
 
 struct shader;
 struct shader_view;
-struct shader_base;
+struct shader_identifier;
 
 ///
 ///
 template <typename type>
-concept shader_like = similar_to<type, shader_base>;
+concept shader_like = similar_to<type, shader_identifier>;
 
 ///
 ///
@@ -47,20 +47,20 @@ constexpr auto shader_type_string(GLenum shader_type) -> czstring {
 
 ///
 ///
-struct shader_base : identifier {
+struct shader_identifier : identifier {
   using base = identifier;
   using base::base;  // Allow construction from `native_handle_type`.
 
   using view_type = shader_view;
   // static auto view() -> shader_view;
 
-  static auto create(GLenum shader_type) noexcept -> shader_base {
-    return shader_base{glCreateShader(shader_type)};
+  static auto create(GLenum shader_type) noexcept -> shader_identifier {
+    return shader_identifier{glCreateShader(shader_type)};
   }
 
   /// The destructor does not throw and marks the OpenGL shader handle for deletion.
   ///
-  static void destroy(shader_base& resource) noexcept {
+  static void destroy(shader_identifier& resource) noexcept {
     // A value of 0 for 'handle' will be silently ignored.
     glDeleteShader(resource.native_handle());
   }
@@ -231,8 +231,8 @@ struct shader_base : identifier {
 
 ///
 ///
-struct shader final : unique_resource<shader_base> {
-  using base = unique_resource<shader_base>;
+struct shader final : unique_resource<shader_identifier> {
+  using base = unique_resource<shader_identifier>;
 
   shader(GLenum shader_type, auto&&... src) : base{shader_type} {
     if constexpr (sizeof...(src))

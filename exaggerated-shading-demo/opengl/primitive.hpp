@@ -1,6 +1,6 @@
 #pragma once
-// #include "vector.hpp"
 #include "resources/vertex_array.hpp"
+#include "vector.hpp"
 
 namespace demo::opengl {
 
@@ -263,11 +263,12 @@ struct basic_vertex_buffer_format : attributes... {
   //   format(va.native_handle(), binding, buffer.native_handle(), offset);
   // }
 
-  // void format(vertex_array_view va,
-  //             GLuint binding,
-  //             vector_span<value_type> vertices) const noexcept {
-  //   format(va, binding, vertices.buffer(), vertices.byte_offset());
-  // }
+  void format(vertex_array_view va,
+              GLuint binding,
+              vector_span_of<value_type> auto vertices) const noexcept {
+    format(va.native_handle(), binding, vertices.buffer().native_handle(),
+           vertices.offset() * sizeof(value_type));
+  }
 };
 
 template <GLuint l, typename projection>
@@ -323,11 +324,11 @@ struct basic_primitive_format : vertex_buffers... {
   // template <std::size_t binding>
   // using assign_type = typename vertex_buffer<binding>::assign_type;
 
-  // template <std::size_t binding>
-  // void format(vertex_array_view va,
-  //             assign_type<binding> vertices) const noexcept {
-  //   vertex_buffers...[binding] ::format(va, binding, vertices);
-  // }
+  template <std::size_t binding>
+  void format(vertex_array_view va,
+              vector_span_like auto vertices) const noexcept {
+    vertex_buffers...[binding] ::format(va, binding, vertices);
+  }
 
   void format(GLuint vaobj, GLuint element_buffer) const noexcept {
     glVertexArrayElementBuffer(vaobj, element_buffer);
@@ -352,6 +353,20 @@ struct basic_primitive_format : vertex_buffers... {
   //         std::make_integer_sequence<GLuint, sizeof...(vertex_buffers)>{})
   //     const noexcept {
   //   format(va, elements);
+  //   (format<bindings>(va, vertices...[bindings]), ...);
+  // }
+
+  // template <GLuint... bindings>
+  // void format(
+  //     vertex_array_view va,
+  //     vector_span_like auto elements,
+  //     vector_span_like auto... vertices,
+  //     std::integer_sequence<GLuint, bindings...> _ =
+  //         std::make_integer_sequence<GLuint,
+  //                                    sizeof...(vertex_buffers)>{}) noexcept
+  //   requires(sizeof...(vertices) == sizeof...(vertex_buffers))
+  // {
+  //   format(va.native_handle(), elements.buffer().native_handle());
   //   (format<bindings>(va, vertices...[bindings]), ...);
   // }
 };

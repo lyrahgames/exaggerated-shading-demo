@@ -90,7 +90,7 @@ void viewer::show(struct scene const& scene) {
   elements = scene.faces;
   normals = scene.smoothed_normals;
 
-  // breakpoint(opengl::vector_span{vertices, 0, 1});
+  // breakpoint(opengl::vector_span{opengl::legacy_vector{vertices}});
   // auto nv = opengl::vector_span{normals, };
   // breakpoint(opengl::vector_span{normals,  //
   //                                (scales - 1) * vertices.size(),
@@ -153,15 +153,20 @@ void viewer::show(struct scene const& scene) {
                             opengl::attribute<0>(MEMBER_VAR(position)),
                             opengl::attribute<1>(MEMBER_VAR(normal))),
                         opengl::vertex_buffer<2, vec4>());
-  // primitive.format(vertex_array.native_handle(),
-  //                  elements.buffer().native_handle());
-  vertex_array.set_elements(elements.buffer());
+  primitive.format(vertex_array.native_handle(),
+                   elements.buffer().native_handle());
+  // vertex_array.set_elements(elements.buffer());
   // vertex_array.set_elements(*element_buffer);
-  primitive.template format<0>(vertex_array.native_handle(),
-                               vertices.buffer().native_handle());
+  // primitive.template format<0>(vertex_array.native_handle(),
+  //                              vertices.buffer().native_handle());
+  primitive.template format<0>(vertex_array, opengl::vector_span{vertices});
   primitive.template format<1>(vertex_array.native_handle(),
                                normals.buffer().native_handle(),
                                (scales - 1) * vertices.size());
+  // primitive.format(
+  //     vertex_array, opengl::vector_span{elements},
+  //     opengl::vector_span{vertices},
+  //     opengl::vector_span{normals, (scales - 1) * vertices.size()});
 
   // auto e = opengl::vector_view{elements};
   // auto v = opengl::vector_span{vertices};

@@ -73,10 +73,16 @@ concept resource_construction_from = requires(types&&... args) {
 ///
 struct owning_resource_tag {};
 
+///
+///
+template <typename type>
+concept strict_owning_resource_like =
+    std::derived_from<type, owning_resource_tag>;
+
 /// Definition of generic resource view types.
 ///
 template <typename type>
-concept owning_resource_like = similar_to<type, owning_resource_tag>;
+concept owning_resource_like = strict_owning_resource_like<std::decay_t<type>>;
 
 /// RAII-enabled class template to wrap any OpenGL resource base.
 /// Copying is disabled - it only allows for moving operations.
@@ -88,6 +94,12 @@ struct unique_resource : owning_resource_tag, resource_identifier {
   /// Member type used for generating lightweight view types.
   ///
   using identifier = resource_identifier;
+
+  /// Generate lightweight borrowed view to underlying resource.
+  ///
+  constexpr auto borrowed_identifier() const noexcept -> identifier {
+    return *this;
+  }
 
   /// The constructors of an OpenGL resource are solely determined
   /// by the factory functions of its base class.

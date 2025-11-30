@@ -27,6 +27,13 @@ class viewer : public opengl_window {
   opengl::frame world{};
   opengl::perspective_camera cam{};
 
+  struct scene_metric {
+    vec3 center{};
+    real radius{};
+    real min_length{};
+  };
+  scene_metric metric{};
+
   // interaction
   struct trackball_interaction {
     vec2 from;
@@ -51,13 +58,43 @@ class viewer : public opengl_window {
   std::optional<std::variant<trackball_interaction, bell_trackball_interaction>>
       trackball{};
 
-  size_t scales = 10;
-  uint32 scale = 0;
+  // size_t scales = 10;
+  // uint32 scale = 0;
 
-  opengl::vertex_array vertex_array{};
-  opengl::device_vector<scene::vertex> vertices{};
-  opengl::device_vector<scene::face> elements{};
-  opengl::device_vector<vec4> normals{};
+  struct primitive {
+    static constexpr auto primitive_format =
+        opengl::primitive(opengl::vertex_buffer<scene::vertex>(
+            opengl::attribute<0>(MEMBER_VAR(position)),
+            opengl::attribute<1>(MEMBER_VAR(normal))));
+
+    primitive(auto&& vs, auto&& fs)
+        : vertices{std::forward<decltype(vs)>(vs)},
+          elements{std::forward<decltype(fs)>(fs)} {
+      primitive_format.format(vertex_array.native_handle(),
+                              elements.buffer().native_handle());
+      primitive_format.template format<0>(vertex_array,
+                                          opengl::vector_span{vertices});
+    }
+
+    opengl::vertex_array
+        vertex_array{};  // is basically view to a mesh primitive
+    // --- Should be separated in the future
+    // primitive format
+    opengl::device_vector<scene::vertex> vertices{};  // could also be a span
+    opengl::device_vector<scene::face> elements{};    // could also be a span
+
+    void draw() {
+      vertex_array.bind();
+      glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
+    }
+  };
+
+  std::vector<primitive> primitives{};
+
+  // opengl::vertex_array vertex_array{};
+  // opengl::device_vector<scene::vertex> vertices{};
+  // opengl::device_vector<scene::face> elements{};
+  // opengl::device_vector<vec4> normals{};
   // std::unique_ptr<opengl::legacy_buffer> element_buffer{};
 
   // opengl::program_build_rule program_rule{{

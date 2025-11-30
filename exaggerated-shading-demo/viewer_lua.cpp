@@ -52,7 +52,13 @@ void viewer::init_lua() {
   viewer_table["update"] = [this] { update(); };
 
   lua["scene_from_file"] = [](std::string_view path) {
-    return scene_from(std::filesystem::path{path});
+    scene out{};
+    try {
+      load(std::filesystem::path{path}, out);
+    } catch (scene_file_error& error) {
+      std::println("{}", error.what());
+    }
+    return out;
   };
 
   lua["show"] = [this](struct scene const& scene) { show(scene); };

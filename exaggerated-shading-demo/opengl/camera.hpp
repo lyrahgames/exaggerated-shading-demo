@@ -53,8 +53,10 @@ constexpr auto view_matrix(camera_base const& cam) noexcept {
 struct perspective_camera : camera_base {
   using base = camera_base;
 
-  constexpr auto projection(viewport const& screen) noexcept {
-    return glm::perspective(fov, aspect_ratio(screen), 1e-3f, 1000.0f);
+  constexpr auto projection(viewport const& screen,
+                            real near = 1e-3,
+                            real far = 1000.0) noexcept {
+    return glm::perspective(fov, aspect_ratio(screen), near, far);
   }
 
   constexpr void fit(frame const& reference, real radius) noexcept {
@@ -71,10 +73,12 @@ struct perspective_camera : camera_base {
 struct orthographic_camera : camera_base {
   using base = camera_base;
 
-  constexpr auto projection(viewport const& screen) noexcept {
+  constexpr auto projection(viewport const& screen,
+                            real near = 1e-3,
+                            real far = 1000.0) noexcept {
     const auto y = fov / 2;
     const auto x = aspect_ratio(screen) * y;
-    return glm::ortho(-x, x, -y, y, 1e-3f, 1000.0f);
+    return glm::ortho(-x, x, -y, y, near, far);
   }
 
   constexpr void fit(frame const& reference, real radius) noexcept {

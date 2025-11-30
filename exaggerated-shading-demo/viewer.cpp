@@ -74,9 +74,21 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 }
 
 void viewer::show(struct scene const& scene) {
+  // scene metric?
   const auto [m, r] = bounding_sphere(scene);
+  const auto e = min_edge_length(scene);
+  std::println("scene min edge length = {}", e);
+  std::println("scene radius = {}", r);
+  metric.center = m;
+  metric.radius = r;
+  metric.min_length = e;
+
   world.move_to(m);
   cam.fit(world, r);
+
+  primitives.clear();
+  for (auto& mesh : scene.meshes)
+    primitives.push_back({mesh.vertices, mesh.faces});
 
   // normals_buffer.assign(scene.smoothed_normals);
   // vertices.assign(scene.vertices);
@@ -86,9 +98,12 @@ void viewer::show(struct scene const& scene) {
   // elements = opengl::const_vector{scene.faces};
   // normals = opengl::const_vector{scene.smoothed_normals};
 
-  vertices = scene.vertices;
-  elements = scene.faces;
-  normals = scene.smoothed_normals;
+  // vertices = scene.vertices;
+  // elements = scene.faces;
+  // normals = scene.smoothed_normals;
+
+  // vertices = scene.meshes[0].vertices;
+  // elements = scene.meshes[0].faces;
 
   // breakpoint(opengl::vector_span{opengl::legacy_vector{vertices}});
   // auto nv = opengl::vector_span{normals, };
@@ -116,8 +131,8 @@ void viewer::show(struct scene const& scene) {
   // vertex_array.set_element_buffer(elements.buffer());
 
   // normals.buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,
-                   normals.buffer().native_handle());
+  // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,
+  //                  normals.buffer().native_handle());
 
   // breakpoint(opengl::vertex_vector_format<vec4>(0));
   // breakpoint(opengl::vertex_vector_format<dvec4>(0));
@@ -148,21 +163,21 @@ void viewer::show(struct scene const& scene) {
   //             [](auto const& x) -> auto const& { return x.normal; })  //
   //         ));
 
-  constexpr auto primitive =
-      opengl::primitive(opengl::vertex_buffer<scene::vertex>(
-                            opengl::attribute<0>(MEMBER_VAR(position)),
-                            opengl::attribute<1>(MEMBER_VAR(normal))),
-                        opengl::vertex_buffer<2, vec4>());
-  primitive.format(vertex_array.native_handle(),
-                   elements.buffer().native_handle());
+  // constexpr auto primitive =
+  //     opengl::primitive(opengl::vertex_buffer<scene::vertex>(
+  //                           opengl::attribute<0>(MEMBER_VAR(position)),
+  //                           opengl::attribute<1>(MEMBER_VAR(normal))),
+  //                       opengl::vertex_buffer<2, vec4>());
+  // primitive.format(vertex_array.native_handle(),
+  //                  elements.buffer().native_handle());
   // vertex_array.set_elements(elements.buffer());
   // vertex_array.set_elements(*element_buffer);
   // primitive.template format<0>(vertex_array.native_handle(),
   //                              vertices.buffer().native_handle());
-  primitive.template format<0>(vertex_array, opengl::vector_span{vertices});
-  primitive.template format<1>(vertex_array.native_handle(),
-                               normals.buffer().native_handle(),
-                               (scales - 1) * vertices.size());
+  // primitive.template format<0>(vertex_array, opengl::vector_span{vertices});
+  // primitive.template format<1>(vertex_array.native_handle(),
+  //                              normals.buffer().native_handle(),
+  //                              (scales - 1) * vertices.size());
   // primitive.format(
   //     vertex_array, opengl::vector_span{elements},
   //     opengl::vector_span{vertices},
@@ -333,14 +348,23 @@ void viewer::render() {
   // shader: mouse position
   // shader: time
 
-  shader->try_set("projection", cam.projection(screen));
+  const auto d = distance(cam.origin(), metric.center);
+  const real near =
+      std::max(d - metric.radius,
+               std::max(10 * metric.min_length, metric.radius / 10000));
+  const real far = d + metric.radius;
+  const auto projection = cam.projection(screen, near, far);
+
+  shader->try_set("projection", projection);
   shader->try_set("view", cam.view());
-  shader->try_set("scales", (uint32)scales);
-  shader->try_set("count", GLuint(vertices.size()));
-  shader->try_set("scale", scale);
+  // shader->try_set("scales", (uint32)scales);
+  // shader->try_set("count", GLuint(vertices.size()));
+  // shader->try_set("scale", scale);
   shader->shader.use();
-  vertex_array.bind();
-  glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
+
+  // vertex_array.bind();
+  // glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
+  for (auto& primitive : primitives) primitive.draw();
 
   use(opengl::viewport{{0, 0}, texture_size});
 
@@ -349,8 +373,10 @@ void viewer::render() {
   const auto mouse = vec2(sf::Mouse::getPosition(window).x,
                           screen.size.y - sf::Mouse::getPosition(window).y);
   const auto pick = glm::pickMatrix(mouse, vec2{20, 20}, ivec4(screen));
-  shader->try_set("projection", pick * cam.projection(screen));
-  glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
+  shader->try_set("projection", pick * projection);
+
+  // glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
+  for (auto& primitive : primitives) primitive.draw();
 
   opengl::current_framebuffer::set(opengl::default_framebuffer);
   texture_shader->shader.use();

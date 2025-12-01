@@ -87,8 +87,17 @@ void viewer::show(struct scene const& scene) {
   cam.fit(world, r);
 
   primitives.clear();
-  for (auto& mesh : scene.meshes)
-    primitives.push_back({mesh.vertices, mesh.faces});
+  for (size_t mid = 0; auto& mesh : scene.meshes) {
+    primitives.push_back({
+        mesh.vertices,
+        mesh.faces,
+        scene.skeleton.weights[mid].offsets,
+        scene.skeleton.weights[mid].data,
+    });
+    ++mid;
+  }
+
+  bone_transforms = scene.skeleton.global_transforms(scene.animations[0], 0.0);
 
   // normals_buffer.assign(scene.smoothed_normals);
   // vertices.assign(scene.vertices);
@@ -348,6 +357,9 @@ void viewer::render() {
   // shader: mouse position
   // shader: time
 
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
+                   bone_transforms.buffer().native_handle());
+
   const auto d = distance(cam.origin(), metric.center);
   const real near =
       std::max(d - metric.radius,
@@ -357,6 +369,7 @@ void viewer::render() {
 
   shader->try_set("projection", projection);
   shader->try_set("view", cam.view());
+  shader->try_set("screen_size", vec2(screen.size));
   // shader->try_set("scales", (uint32)scales);
   // shader->try_set("count", GLuint(vertices.size()));
   // shader->try_set("scale", scale);
@@ -372,8 +385,10 @@ void viewer::render() {
   opengl::current_framebuffer::clear();
   const auto mouse = vec2(sf::Mouse::getPosition(window).x,
                           screen.size.y - sf::Mouse::getPosition(window).y);
-  const auto pick = glm::pickMatrix(mouse, vec2{20, 20}, ivec4(screen));
+  const auto mag_screen = vec2{20, 20};
+  const auto pick = glm::pickMatrix(mouse, mag_screen, ivec4(screen));
   shader->try_set("projection", pick * projection);
+  shader->try_set("screen_size", mag_screen);
 
   // glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
   for (auto& primitive : primitives) primitive.draw();

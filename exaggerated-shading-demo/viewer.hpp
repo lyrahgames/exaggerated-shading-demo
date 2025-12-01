@@ -67,9 +67,11 @@ class viewer : public opengl_window {
             opengl::attribute<0>(MEMBER_VAR(position)),
             opengl::attribute<1>(MEMBER_VAR(normal))));
 
-    primitive(auto&& vs, auto&& fs)
+    primitive(auto&& vs, auto&& fs, auto&& wo, auto&& wd)
         : vertices{std::forward<decltype(vs)>(vs)},
-          elements{std::forward<decltype(fs)>(fs)} {
+          elements{std::forward<decltype(fs)>(fs)},
+          bone_weight_offsets{std::forward<decltype(wo)>(wo)},
+          bone_weight_data{std::forward<decltype(wd)>(wd)} {
       primitive_format.format(vertex_array.native_handle(),
                               elements.buffer().native_handle());
       primitive_format.template format<0>(vertex_array,
@@ -83,13 +85,22 @@ class viewer : public opengl_window {
     opengl::device_vector<scene::vertex> vertices{};  // could also be a span
     opengl::device_vector<scene::face> elements{};    // could also be a span
 
+    opengl::device_vector<scene::size_type> bone_weight_offsets{};
+    opengl::device_vector<scene::skeleton::weight_data::entry>
+        bone_weight_data{};
+
     void draw() {
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,
+                       bone_weight_offsets.buffer().native_handle());
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,
+                       bone_weight_data.buffer().native_handle());
       vertex_array.bind();
       glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
     }
   };
 
   std::vector<primitive> primitives{};
+  opengl::device_vector<mat4> bone_transforms{};
 
   // opengl::vertex_array vertex_array{};
   // opengl::device_vector<scene::vertex> vertices{};
@@ -109,6 +120,14 @@ class viewer : public opengl_window {
                    {
                        opengl::vs("exaggerated-shading-demo/vs.glsl"),
                        opengl::fs("exaggerated-shading-demo/fs.glsl"),
+                   });
+
+  std::shared_ptr<opengl::program_target> animation_shader =
+      build.target("animation",
+                   {
+                       opengl::vs("exaggerated-shading-demo/animation.vs.glsl"),
+                       opengl::gs("exaggerated-shading-demo/animation.gs.glsl"),
+                       opengl::fs("exaggerated-shading-demo/animation.fs.glsl"),
                    });
 
   opengl::framebuffer fbo{};

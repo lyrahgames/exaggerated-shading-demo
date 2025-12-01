@@ -61,6 +61,25 @@ void viewer::init_lua() {
     return out;
   };
 
+  lua.new_usertype<scene>(
+      "scene",  //
+      "from_file", sol::factories([](std::string_view path) {
+        scene out{};
+        try {
+          load(std::filesystem::path{path}, out);
+        } catch (scene_file_error& error) {
+          std::println("{}", error.what());
+        }
+        return out;
+      }),                                                                    //
+      "min_edge_length", [](scene const& s) { return min_edge_length(s); },  //
+      "print", [](scene const& s) { print(s); },                             //
+      "animate",
+      [this](struct scene const& scene, int aid, double time) {
+        bone_transforms =
+            scene.skeleton.global_transforms(scene.animations[aid], time);
+      });
+
   lua["show"] = [this](struct scene const& scene) { show(scene); };
 
   lua["set_clear_color"] = [this](float r, float g, float b) {
@@ -82,6 +101,11 @@ void viewer::init_lua() {
 
   lua["vs"] = [assign_sources](sol::variadic_args args) {
     opengl::shader_build_rule obj{GL_VERTEX_SHADER};
+    assign_sources(obj, args);
+    return obj;
+  };
+  lua["gs"] = [assign_sources](sol::variadic_args args) {
+    opengl::shader_build_rule obj{GL_GEOMETRY_SHADER};
     assign_sources(obj, args);
     return obj;
   };

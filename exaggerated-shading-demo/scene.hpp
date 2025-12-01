@@ -2,17 +2,14 @@
 #include <cstdint>
 //
 #include <filesystem>
+#include <print>
 #include <string>
 //
 #include <array>
 #include <list>
+#include <map>
 #include <ranges>
 #include <vector>
-//
-
-//
-// #include "aabb.hpp"
-// #include "stl_surface.hpp"
 //
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -37,13 +34,16 @@ struct scene {
   using mat4 = glm::mat4;
   using quat = glm::quat;
 
+  using texture_index = size_type;
+  using material_index = size_type;
+  using vertex_index = size_type;
+  using mesh_index = size_type;
+  using node_index = size_type;
+  using bone_index = std::int32_t;
+
   struct texture {};
 
-  using texture_index = size_type;
-
   struct material {};
-
-  using material_index = size_type;
 
   struct vertex {
     vec3 position;
@@ -54,8 +54,6 @@ struct scene {
     // vec4[4] color;
   };
 
-  using vertex_index = size_type;
-
   struct face : std::array<vertex_index, 3> {};
 
   struct mesh {
@@ -65,22 +63,124 @@ struct scene {
     std::vector<face> faces{};
   };
 
-  using mesh_index = size_type;
+  struct bone_entry {
+    struct weight_entry {
+      vertex_index vertex{};
+      real weight{};
+    };
+    // Data
+    mesh_index mesh{};
+    std::vector<weight_entry> weights{};
+  };
 
   struct node {
     /// Connectivity Data
+    /// Assumption: pointer to nodes (`node*`) do not get invalidated
     node* parent{};  // Use bare pointer type for easy no-overhead referencing.
     std::list<node> children{};  // Use `std::list` for easy modification.
     //
+    /// Node Data
+    node_index index{};
+    std::string name{};
+    mat4 offset{1.0f};
+    mat4 transform{1.0f};
     std::vector<mesh_index> meshes{};
+    std::vector<bone_entry> bone_entries{};
+  };
+
+  struct animation {
+    struct channel {
+      template <typename type>
+      struct key {
+        double time{};
+        type data{};
+      };
+      using position_key = key<vec3>;
+      using rotation_key = key<quat>;
+      using scaling_key = key<vec3>;
+
+      std::string node_name{};
+      std::vector<position_key> positions{};
+      std::vector<rotation_key> rotations{};
+      std::vector<scaling_key> scalings{};
+
+      auto position(double time) const -> mat4;
+      auto rotation(double time) const -> mat4;
+      auto scaling(double time) const -> mat4;
+      auto transform(double time) const -> mat4;
+    };
+
+    std::string name{};
+    double duration{};
+    double ticks{};
+    std::vector<channel> channels{};
+  };
+
+  struct skeleton {
+    struct bone {
+      mat4 offset;
+      mat4 transform;
+    };
+
+    struct weight_data {
+      struct entry {
+        bone_index bone{};
+        real weight{};
+      };
+      std::vector<size_type> offsets{};
+      std::vector<entry> data{};
+    };
+
+    std::vector<bone_index> parents{};
+    std::vector<bone> bones{};
+    std::vector<node*> nodes{};
+    std::vector<weight_data> weights{};
+
+    std::map<std::string_view, bone_index> bone_name_map{};
+
+    // std::vector<scene_animation> animations{};
+
+    auto global_transforms(const scene::animation& animation, double time) const
+        -> std::vector<mat4> {
+      std::vector<mat4> result{};
+      result.reserve(bones.size());
+      for (size_t bid = 0; bid < bones.size(); ++bid)
+        result.push_back(mat4(1.0f));
+      // result.push_back(bones[bid].transform);
+
+      for (const auto& channel : animation.channels) {
+        if (auto it = bone_name_map.find(channel.node_name);
+            it != bone_name_map.end()) {
+          const auto bid = it->second;
+          // const auto bid = bone_name_map.at(channel.node_name);
+          result[bid] = channel.transform(time * animation.ticks);
+        }
+      }
+
+      for (size_t bid = 0; bid < bones.size(); ++bid)
+        if (parents[bid] < bones.size())
+          result[bid] = result[parents[bid]] * result[bid];
+
+      for (size_t bid = 0; bid < bones.size(); ++bid)
+        result[bid] *= bones[bid].offset;
+      // result[bid] = translate(mat4(1.0f), glm::vec3(1.0f + bid));
+
+      return result;
+    }
   };
 
   //
   std::string name{};
   node root{};
-  std::vector<texture> textures{};
+  node_index node_count{};
+  // std::vector<texture> textures{};
   std::vector<material> materials{};
   std::vector<mesh> meshes{};
+  //
+  std::map<std::string_view, node&> node_name_map{};
+  std::vector<animation> animations{};
+
+  struct skeleton skeleton{};
 };
 
 struct scene_error : cpptrace::runtime_error {
@@ -93,7 +193,14 @@ struct scene_file_error : scene_error {
   using base::base;
 };
 
+/// Print basic scene information
+///
+void print(scene const& s);
+
 /// Uses exceptions for simpler handling of loading.
+/// Exceptions allow for easy abort across stack as soon as the first error appears.
+/// We only want to load valid files. So, this behavior is good.
+/// Thus, in this case, exceptions simplify implementation.
 ///
 auto scene_from(std::filesystem::path const& path) -> scene;
 void load(std::filesystem::path const& path, scene& out);

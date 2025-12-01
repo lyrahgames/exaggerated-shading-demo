@@ -5,7 +5,8 @@ import libs = \
   cpptrace%lib{cpptrace} \
   assimp%lib{assimp} \
   sol2%lib{sol2} \
-  lua%lib{lua}
+  lua%lib{lua} \
+  fmt%lib{fmt}
 
 define glsl: file
 glsl{*}: extension = glsl

@@ -51,6 +51,11 @@ auto vs(auto&&... sources) -> shader_build_rule {
                            std::forward<decltype(sources)>(sources)...};
 }
 
+auto gs(auto&&... sources) -> shader_build_rule {
+  return shader_build_rule{GL_GEOMETRY_SHADER,
+                           std::forward<decltype(sources)>(sources)...};
+}
+
 auto fs(auto&&... sources) -> shader_build_rule {
   return shader_build_rule{GL_FRAGMENT_SHADER,
                            std::forward<decltype(sources)>(sources)...};

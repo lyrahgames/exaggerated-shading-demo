@@ -3,6 +3,9 @@
 #include <glbinding/glbinding.h>
 //
 #include "aabb.hpp"
+//
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
 
 namespace demo {
 
@@ -97,7 +100,51 @@ void viewer::show(struct scene const& scene) {
     ++mid;
   }
 
+  textures.clear();
+  textures.resize(scene.textures.size());
+  for (size_t i = 1; i < scene.textures.size(); ++i) {
+    auto const& tex = textures[i];
+    auto const& path = scene.textures[i];
+
+    stbi_set_flip_vertically_on_load(true);
+    int width, height, channels;
+    unsigned char* pixels =
+        stbi_load(path.string().c_str(), &width, &height, &channels, 4);
+    if (!pixels) {
+      std::println("ERROR: Failed to load image from {}", path.string());
+      continue;
+    }
+
+    std::println("texture: {}x{}x{} {}", width, height, channels,
+                 path.string());
+
+    int levels =
+        1 + static_cast<int>(std::floor(std::log2(std::max(width, height))));
+    tex.alloc(levels, GL_RGBA8, width, height);
+    tex.write(0,                          //
+              0, 0, width, height,        //
+              GL_RGBA, GL_UNSIGNED_BYTE,  //
+              pixels);
+    tex.generate_mipmap();
+
+    stbi_image_free(pixels);
+
+    tex.set_min_filter_to_linear();
+    tex.set_mag_filter_to_linear();
+    tex.repeat();
+  }
+  std::println("textures loaded = {}", textures.size());
+
   bone_transforms = scene.skeleton.global_transforms(scene.animations[0], 0.0);
+  materials = scene.materials | std::views::transform([](auto const& mat) {
+                return material{
+                    .ambient = vec4(mat.ambient, 1.0),
+                    .diffuse = vec4(mat.diffuse, 1.0),
+                    .specular = vec4(mat.specular, 1.0),
+                    .albedo_map = mat.albedo_map,
+                };
+              }) |
+              std::ranges::to<std::vector>();
 
   // normals_buffer.assign(scene.smoothed_normals);
   // vertices.assign(scene.vertices);
@@ -359,6 +406,9 @@ void viewer::render() {
 
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
                    bone_transforms.buffer().native_handle());
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,
+                   materials.buffer().native_handle());
+  for (int i = 0; i < textures.size(); ++i) textures[i].bind_to_unit(i);
 
   const auto d = distance(cam.origin(), metric.center);
   const real near =
@@ -375,9 +425,14 @@ void viewer::render() {
   // shader->try_set("scale", scale);
   shader->shader.use();
 
+  GLint samplers[32];
+  for (int i = 0; i < textures.size(); ++i) samplers[i] = i;
+  glUniform1iv(glGetUniformLocation(shader->shader.native_handle(), "textures"),
+               textures.size(), samplers);
+
   // vertex_array.bind();
   // glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
-  for (auto& primitive : primitives) primitive.draw();
+  for (auto& primitive : primitives) primitive.draw(shader->shader);
 
   use(opengl::viewport{{0, 0}, texture_size});
 
@@ -391,7 +446,7 @@ void viewer::render() {
   shader->try_set("screen_size", mag_screen);
 
   // glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
-  for (auto& primitive : primitives) primitive.draw();
+  for (auto& primitive : primitives) primitive.draw(shader->shader);
 
   opengl::current_framebuffer::set(opengl::default_framebuffer);
   texture_shader->shader.use();

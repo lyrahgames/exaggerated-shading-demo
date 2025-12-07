@@ -65,7 +65,8 @@ class viewer : public opengl_window {
     static constexpr auto primitive_format =
         opengl::primitive(opengl::vertex_buffer<scene::vertex>(
             opengl::attribute<0>(MEMBER_VAR(position)),
-            opengl::attribute<1>(MEMBER_VAR(normal))));
+            opengl::attribute<1>(MEMBER_VAR(normal)),
+            opengl::attribute<2>(MEMBER_VAR(texuv))));
 
     primitive(auto&& vs, auto&& fs, auto&& wo, auto&& wd)
         : vertices{std::forward<decltype(vs)>(vs)},
@@ -84,12 +85,15 @@ class viewer : public opengl_window {
     // primitive format
     opengl::device_vector<scene::vertex> vertices{};  // could also be a span
     opengl::device_vector<scene::face> elements{};    // could also be a span
+    scene::material_index material{};
 
     opengl::device_vector<scene::size_type> bone_weight_offsets{};
     opengl::device_vector<scene::skeleton::weight_data::entry>
         bone_weight_data{};
 
-    void draw() {
+    void draw(opengl::program_view shader) {
+      shader.try_set("material_index", material);
+      // shader.use();
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,
                        bone_weight_offsets.buffer().native_handle());
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,
@@ -101,6 +105,16 @@ class viewer : public opengl_window {
 
   std::vector<primitive> primitives{};
   opengl::device_vector<mat4> bone_transforms{};
+
+  struct material {
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    uint albedo_map;
+  };
+  opengl::device_vector<material> materials{};
+
+  std::vector<opengl::texture2> textures{};
 
   // opengl::vertex_array vertex_array{};
   // opengl::device_vector<scene::vertex> vertices{};

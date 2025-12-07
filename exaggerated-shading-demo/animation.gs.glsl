@@ -6,9 +6,11 @@ layout (triangle_strip, max_vertices = 3) out;
 uniform vec2 screen_size = vec2(100, 100);
 
 in vec3 normal[];
+in vec2 texuv[];
 
 out vec3 nor;
 out vec3 vnor;
+out vec2 tuv;
 noperspective out vec3 edge_distance;
 
 void main(){
@@ -32,18 +34,21 @@ void main(){
   edge_distance = vec3(ha, 0, 0);
   nor = n;
   vnor = normal[0];
+  tuv = texuv[0];
   gl_Position = gl_in[0].gl_Position;
   EmitVertex();
 
   edge_distance = vec3(0, hb, 0);
   nor = n;
   vnor = normal[1];
+  tuv = texuv[1];
   gl_Position = gl_in[1].gl_Position;
   EmitVertex();
 
   edge_distance = vec3(0, 0, hc);
   nor = n;
   vnor = normal[2];
+  tuv = texuv[2];
   gl_Position = gl_in[2].gl_Position;
   EmitVertex();
 

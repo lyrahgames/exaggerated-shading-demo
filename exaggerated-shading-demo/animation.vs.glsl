@@ -32,11 +32,14 @@ mat4 bone_transform(uint vid) {
 
 layout (location = 0) in vec3 p;
 layout (location = 1) in vec3 n;
+layout (location = 2) in vec2 uv;
 
 out vec3 normal;
+out vec2 texuv;
 
 void main() {
   const mat4 m = view * bone_transform(gl_VertexID);
   gl_Position = projection * m * vec4(p, 1.0);
   normal = vec3(transpose(inverse(m)) * vec4(n, 0.0));
+  texuv = uv;
 }

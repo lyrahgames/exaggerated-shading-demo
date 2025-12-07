@@ -60,6 +60,23 @@ struct texture2_identifier : texture_identifier {
     glTextureStorage2D(native_handle(), levels, format, width, height);
   }
 
+  void write(GLint level,
+             GLint xoffset,
+             GLint yoffset,
+             GLsizei width,
+             GLsizei height,
+             GLenum format,
+             GLenum type,
+             const void* pixels) const noexcept {
+    glTextureSubImage2D(native_handle(), level,           //
+                        xoffset, yoffset, width, height,  //
+                        format, type, pixels);
+  }
+
+  void generate_mipmap() const noexcept {
+    glGenerateTextureMipmap(native_handle());
+  }
+
   void set_min_filter_to_linear() const noexcept {
     glTextureParameteri(native_handle(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   }
@@ -77,6 +94,11 @@ struct texture2_identifier : texture_identifier {
   void clamp_to_edges() const noexcept {
     glTextureParameteri(native_handle(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(native_handle(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  }
+
+  void repeat() const noexcept {
+    glTextureParameteri(native_handle(), GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(native_handle(), GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
 
   void bind_to_unit(GLuint location) const noexcept {

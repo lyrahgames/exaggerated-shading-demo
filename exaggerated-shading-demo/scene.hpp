@@ -41,13 +41,34 @@ struct scene {
   using node_index = size_type;
   using bone_index = std::int32_t;
 
-  struct texture {};
+  // struct texture {
+  //   std::filesystem::path path{};
+  //   texture_index id{};
+  // };
 
-  struct material {};
+  struct material {
+    std::string name{};
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+
+    texture_index albedo_map{};
+    texture_index normal_map{};
+    texture_index orm_map{};
+
+    // std::filesystem::path base_color_map;
+    // std::filesystem::path normal_map;
+    // std::filesystem::path metal_map;
+    // std::filesystem::path ambient_texture;
+    // std::filesystem::path diffuse_texture;
+    // std::filesystem::path specular_texture;
+  };
 
   struct vertex {
     vec3 position;
     vec3 normal;
+    vec2 texuv;
     // vec3 tangent;
     // vec3 bitangent;
     // vec2[4] texuv;
@@ -173,7 +194,18 @@ struct scene {
   std::string name{};
   node root{};
   node_index node_count{};
+
   // std::vector<texture> textures{};
+  std::vector<std::filesystem::path> textures{""};
+  std::map<std::filesystem::path, texture_index> texture_map{};
+
+  auto texture_id(std::filesystem::path const& path) -> texture_index {
+    auto p = weakly_canonical(path);
+    const auto [it, inserted] = texture_map.emplace(p, textures.size());
+    if (inserted) textures.push_back(p);
+    return it->second;
+  }
+
   std::vector<material> materials{};
   std::vector<mesh> meshes{};
   //

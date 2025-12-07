@@ -14,6 +14,22 @@
 
 namespace demo {
 
+namespace {
+// scoped_chdir -> scoped_current_path
+// this is not shared_scoped_current_path
+// and as such not save in a multi-threaded context
+// `std::filesystem::current_path` itself is atomic
+// but also not save for multiple threads due to the shared global state.
+struct scoped_chdir final {
+  std::filesystem::path cwd{};
+  scoped_chdir(std::filesystem::path const& path)
+      : cwd{std::filesystem::current_path()} {
+    current_path(path);
+  }
+  ~scoped_chdir() noexcept { current_path(cwd); }
+};
+}  // namespace
+
 static auto vec3_from(const aiVector3D& v) noexcept -> scene::vec3 {
   return {v.x, v.y, v.z};
 };
@@ -33,9 +49,15 @@ static void load(const aiMesh* in, scene::mesh& out) {
   out.name = in->mName.C_Str();
   // Vertices
   out.vertices.reserve(in->mNumVertices);
-  for (size_t vid = 0; vid < in->mNumVertices; ++vid)
+  for (size_t vid = 0; vid < in->mNumVertices; ++vid) {
     out.vertices.emplace_back(vec3_from(in->mVertices[vid]),
                               vec3_from(in->mNormals[vid]));
+
+    if (in->HasTextureCoords(0)) {
+      out.vertices[vid].texuv.x = in->mTextureCoords[0][vid].x;
+      out.vertices[vid].texuv.y = in->mTextureCoords[0][vid].y;
+    }
+  }
   // Faces
   out.faces.reserve(in->mNumFaces);
   for (size_t fid = 0; fid < in->mNumFaces; ++fid) {
@@ -59,6 +81,47 @@ static void load_meshes(const aiScene* in, scene& out) {
   out.meshes.resize(in->mNumMeshes);
   for (size_t mid = 0; mid < in->mNumMeshes; ++mid)
     load(in->mMeshes[mid], out.meshes[mid]);
+}
+
+static void load(const aiMaterial* in,
+                 struct scene& scene,
+                 scene::material& out) {
+  if (aiString name; in->Get(AI_MATKEY_NAME, name) == AI_SUCCESS)
+    out.name = name.C_Str();
+
+  if (aiColor3D color; in->Get(AI_MATKEY_COLOR_AMBIENT, color) == AI_SUCCESS)
+    out.diffuse = {color.r, color.g, color.b};
+
+  if (aiColor3D color; in->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS)
+    out.diffuse = {color.r, color.g, color.b};
+
+  if (aiColor3D color; in->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS)
+    out.specular = {color.r, color.g, color.b};
+
+  if (float shininess; in->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS)
+    out.shininess = shininess;
+
+  if (in->GetTextureCount(aiTextureType_BASE_COLOR)) {
+    if (aiString str;
+        in->GetTexture(aiTextureType_BASE_COLOR, 0, &str) == AI_SUCCESS)
+      out.albedo_map = scene.texture_id(str.C_Str());
+  }
+  if (in->GetTextureCount(aiTextureType_NORMALS)) {
+    if (aiString str;
+        in->GetTexture(aiTextureType_NORMALS, 0, &str) == AI_SUCCESS)
+      out.normal_map = scene.texture_id(str.C_Str());
+  }
+  if (in->GetTextureCount(aiTextureType_METALNESS)) {
+    if (aiString str;
+        in->GetTexture(aiTextureType_METALNESS, 0, &str) == AI_SUCCESS)
+      out.orm_map = scene.texture_id(str.C_Str());
+  }
+}
+
+static void load_materials(const aiScene* in, scene& out) {
+  out.materials.resize(in->mNumMaterials);
+  for (size_t mid = 0; mid < in->mNumMaterials; ++mid)
+    load(in->mMaterials[mid], out, out.materials[mid]);
 }
 
 /// Recursive function to load node entries from Assimp into the scene.
@@ -219,6 +282,7 @@ static void load_animations(const aiScene* in, scene& out) {
 static void load(const aiScene* in, scene& out) noexcept {
   out.name = in->mName.C_Str();
   load_meshes(in, out);
+  load_materials(in, out);
   load_hierarchy(in, out);
   load_animations(in, out);
 }
@@ -274,15 +338,18 @@ static void update_skeleton(scene& s) {
 void load(std::filesystem::path const& path, scene& out) {
   if (!exists(path)) throw scene_file_error("Path does not exist.");
 
+  // Make it possible to load relative scene and texture files.
+  scoped_chdir _{path.parent_path()};
+
   Assimp::Importer importer{};
 
   // Assimp doesn’t promise successful triangulation for every arbitrary polygon.
   // If the input mesh has degenerate or invalid faces, you can get leftover stuff.
-  const auto post_processing =
-      aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals |
-      aiProcess_JoinIdenticalVertices | aiProcess_RemoveComponent |
-      /*aiProcess_OptimizeMeshes |*/ /*aiProcess_OptimizeGraph |*/
-      aiProcess_FindDegenerates /*| aiProcess_DropNormals*/;
+  const auto post_processing = aiProcess_Triangulate /*|*/
+      /*aiProcess_FlipUVs |*/               /*aiProcess_GenSmoothNormals |*/
+      /*aiProcess_JoinIdenticalVertices |*/ /*aiProcess_RemoveComponent |*/
+      /*aiProcess_OptimizeMeshes |*/        /*aiProcess_OptimizeGraph |*/
+      /*aiProcess_FindDegenerates*/ /*| aiProcess_DropNormals*/;
 
   // Use simple node transforms that already include any pivot offsets/rotations.
   importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);  // ?
@@ -322,6 +389,44 @@ static void print_meshes(struct scene const& scene) {
     }
     fmt::println("");
   }
+}
+
+static void print_materials(struct scene const& scene) {
+  if (scene.materials.empty()) return;
+  const auto size = scene.materials.size();
+  const auto id_width = static_cast<int>(
+      std::ceil(std::log10(static_cast<scene::real>(size + 1))));
+  fmt::print(fmt::emphasis::bold, "Materials:\n");
+  for (size_t i = 0; i < scene.materials.size() - 1; ++i) {
+    auto const& material = scene.materials[i];
+    fmt::println("├─◍ {:>{}}: {}", i, id_width, material.name);
+    fmt::println("│   ambient    = {}", material.ambient);
+    fmt::println("│   diffuse    = {}", material.diffuse);
+    fmt::println("│   specular   = {}", material.specular);
+    fmt::println("│   shininess  = {}", material.shininess);
+    fmt::println("│   albedo map = {}: {}", material.albedo_map,
+                 scene.textures[material.albedo_map]);
+    fmt::println("│   normal map = {}: {}", material.normal_map,
+                 scene.textures[material.normal_map]);
+    fmt::println("│   metal map  = {}: {}", material.orm_map,
+                 scene.textures[material.orm_map]);
+  }
+  {
+    auto const& material = scene.materials.back();
+    fmt::println("└─◍ {:>{}}: {}", scene.materials.size() - 1, id_width,
+                 material.name);
+    fmt::println("    ambient    = {}", material.ambient);
+    fmt::println("    diffuse    = {}", material.diffuse);
+    fmt::println("    specular   = {}", material.specular);
+    fmt::println("    shininess  = {}", material.shininess);
+    fmt::println("    albedo map = {}: {}", material.albedo_map,
+                 scene.textures[material.albedo_map]);
+    fmt::println("    normal map = {}: {}", material.normal_map,
+                 scene.textures[material.normal_map]);
+    fmt::println("    metal map  = {}: {}", material.orm_map,
+                 scene.textures[material.orm_map]);
+  }
+  fmt::println("");
 }
 
 static void pretty_print_node(struct scene const& scene,
@@ -385,9 +490,10 @@ static void print_animations(struct scene const& scene) {
 
 void print(struct scene const& scene) {
   fmt::println("Scene: {}", scene.name);
-  print_meshes(scene);
-  print_hierarchy(scene);
-  print_animations(scene);
+  // print_meshes(scene);
+  print_materials(scene);
+  // print_hierarchy(scene);
+  // print_animations(scene);
 }
 
 // auto scene_from(const filesystem::path& path) -> scene {

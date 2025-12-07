@@ -91,7 +91,9 @@ void viewer::show(struct scene const& scene) {
 
   primitives.clear();
   for (size_t mid = 0; auto& mesh : scene.meshes) {
+    std::println("mesh: material = {}", mesh.material);
     primitives.push_back({
+        mesh.material,
         mesh.vertices,
         mesh.faces,
         scene.skeleton.weights[mid].offsets,
@@ -138,10 +140,11 @@ void viewer::show(struct scene const& scene) {
   bone_transforms = scene.skeleton.global_transforms(scene.animations[0], 0.0);
   materials = scene.materials | std::views::transform([](auto const& mat) {
                 return material{
-                    .ambient = vec4(mat.ambient, 1.0),
-                    .diffuse = vec4(mat.diffuse, 1.0),
-                    .specular = vec4(mat.specular, 1.0),
+                    // .ambient = vec4(mat.ambient, 1.0),
+                    // .diffuse = vec4(mat.diffuse, 1.0),
+                    // .specular = vec4(mat.specular, 1.0),
                     .albedo_map = mat.albedo_map,
+                    .orm_map = mat.orm_map,
                 };
               }) |
               std::ranges::to<std::vector>();
@@ -432,7 +435,11 @@ void viewer::render() {
 
   // vertex_array.bind();
   // glDrawElements(GL_TRIANGLES, 3 * elements.size(), GL_UNSIGNED_INT, 0);
-  for (auto& primitive : primitives) primitive.draw(shader->shader);
+  for (uint i = 0; auto& primitive : primitives) {
+    shader->try_set("mesh_index", i);
+    primitive.draw(shader->shader);
+    ++i;
+  }
 
   use(opengl::viewport{{0, 0}, texture_size});
 

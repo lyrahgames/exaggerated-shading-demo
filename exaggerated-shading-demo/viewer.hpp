@@ -68,8 +68,13 @@ class viewer : public opengl_window {
             opengl::attribute<1>(MEMBER_VAR(normal)),
             opengl::attribute<2>(MEMBER_VAR(texuv))));
 
-    primitive(auto&& vs, auto&& fs, auto&& wo, auto&& wd)
-        : vertices{std::forward<decltype(vs)>(vs)},
+    primitive(scene::material_index mat,
+              auto&& vs,
+              auto&& fs,
+              auto&& wo,
+              auto&& wd)
+        : material{mat},
+          vertices{std::forward<decltype(vs)>(vs)},
           elements{std::forward<decltype(fs)>(fs)},
           bone_weight_offsets{std::forward<decltype(wo)>(wo)},
           bone_weight_data{std::forward<decltype(wd)>(wd)} {
@@ -83,17 +88,17 @@ class viewer : public opengl_window {
         vertex_array{};  // is basically view to a mesh primitive
     // --- Should be separated in the future
     // primitive format
+    scene::material_index material{};
     opengl::device_vector<scene::vertex> vertices{};  // could also be a span
     opengl::device_vector<scene::face> elements{};    // could also be a span
-    scene::material_index material{};
 
     opengl::device_vector<scene::size_type> bone_weight_offsets{};
     opengl::device_vector<scene::skeleton::weight_data::entry>
         bone_weight_data{};
 
     void draw(opengl::program_view shader) {
-      shader.try_set("material_index", material);
       // shader.use();
+      shader.try_set("material_index", uint(material));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,
                        bone_weight_offsets.buffer().native_handle());
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,
@@ -107,10 +112,11 @@ class viewer : public opengl_window {
   opengl::device_vector<mat4> bone_transforms{};
 
   struct material {
-    vec4 ambient;
-    vec4 diffuse;
-    vec4 specular;
+    // vec4 ambient;
+    // vec4 diffuse;
+    // vec4 specular;
     uint albedo_map;
+    uint orm_map;
   };
   opengl::device_vector<material> materials{};
 

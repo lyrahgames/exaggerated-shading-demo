@@ -75,6 +75,8 @@ static void load(const aiMesh* in, scene::mesh& out) {
   // Bones
   // The `scene` data structure stores all bone information and weights
   // in the its hierarchy's nodes and therefore bones are not handled here.
+
+  out.material = in->mMaterialIndex;
 }
 
 static void load_meshes(const aiScene* in, scene& out) {
@@ -377,6 +379,8 @@ static void print_meshes(struct scene const& scene) {
     for (size_t i = 0; i < scene.meshes.size() - 1; ++i) {
       const auto& mesh = scene.meshes[i];
       fmt::println("├─◬ {:>{}}: {}", i, id_width, mesh.name);
+      fmt::println("│   material = {}: {}", mesh.material,
+                   scene.materials[mesh.material].name);
       fmt::println("│   #v = {:>8}", mesh.vertices.size());
       fmt::println("│   #f = {:>8}", mesh.faces.size());
     }
@@ -384,6 +388,8 @@ static void print_meshes(struct scene const& scene) {
       const auto& mesh = scene.meshes.back();
       fmt::println("└─◬ {:>{}}: {}", scene.meshes.size() - 1, id_width,
                    mesh.name);
+      fmt::println("    material = {}: {}", mesh.material,
+                   scene.materials[mesh.material].name);
       fmt::println("    #v = {:>8}", mesh.vertices.size());
       fmt::println("    #f = {:>8}", mesh.faces.size());
     }
@@ -490,7 +496,7 @@ static void print_animations(struct scene const& scene) {
 
 void print(struct scene const& scene) {
   fmt::println("Scene: {}", scene.name);
-  // print_meshes(scene);
+  print_meshes(scene);
   print_materials(scene);
   // print_hierarchy(scene);
   // print_animations(scene);

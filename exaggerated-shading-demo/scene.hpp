@@ -11,6 +11,8 @@
 #include <ranges>
 #include <vector>
 //
+#include <generator>
+//
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 //
@@ -213,6 +215,67 @@ struct scene {
   std::vector<animation> animations{};
 
   struct skeleton skeleton{};
+
+  static constexpr auto char_width(std::unsigned_integral auto n) -> int {
+    return (n == 0) ? 1 : std::ceil(std::log10(1.0f + n));
+  };
+
+  // To-Do:
+  // - [ ] add possibility to disable printing id
+  // - [ ] add horizontal and vertical spacing options
+  //
+  auto list_info(
+      std::ranges::input_range auto&& data,
+      // auto&& info,  // invocable with elements and must return string range
+      std::string_view icon = "") const -> std::generator<std::string> {
+    if (std::ranges::empty(data)) co_return;
+    const auto size = std::ranges::size(data);
+    const auto width = char_width(size - 1);
+    auto it = std::ranges::begin(data);
+    for (std::size_t i = 0; i < size - 1; ++i, ++it) {
+      auto infos = info(*it);
+      auto it = std::ranges::begin(infos);
+      co_yield std::format("├─{} {:>{}}: {}", icon, i, width, *it);
+      ++it;
+      for (; it != std::ranges::end(infos); ++it)  //
+        co_yield std::format("│ {}", *it);
+      // co_yield std::format("│   {}", *it);
+      // co_yield std::format("│");
+    }
+    {
+      auto i = size - 1;
+      auto infos = info(*it);
+      auto it = std::ranges::begin(infos);
+      co_yield std::format("└─{} {:>{}}: {}", icon, i, width, *it);
+      ++it;
+      for (; it != std::ranges::end(infos); ++it)  //
+        co_yield std::format("  {}", *it);
+      // co_yield std::format("    {}", *it);
+      // co_yield std::format("");
+    }
+  }
+
+  auto info(mesh const&) const -> std::generator<std::string>;
+  auto info(material const&) const -> std::generator<std::string>;
+  auto info(std::filesystem::path const& texture) const
+      -> std::generator<std::string>;
+  auto info(node const&) const -> std::generator<std::string>;
+  auto info(animation const&) const -> std::generator<std::string>;
+
+  auto mesh_list_info() const -> std::generator<std::string>;
+  void print_mesh_list() const;
+
+  auto material_list_info() const -> std::generator<std::string>;
+  void print_material_list() const;
+
+  auto texture_list_info() const -> std::generator<std::string>;
+  void print_texture_list() const;
+
+  auto animation_list_info() const -> std::generator<std::string>;
+  void print_animation_list() const;
+
+  auto hierarchy_info() const -> std::generator<std::string>;
+  void print_hierarchy() const;
 };
 
 struct scene_error : cpptrace::runtime_error {
@@ -225,9 +288,11 @@ struct scene_file_error : scene_error {
   using base::base;
 };
 
+// void print_mesh_list(scene const&);
+
 /// Print basic scene information
 ///
-void print(scene const& s);
+// void print(scene const& s);
 
 /// Uses exceptions for simpler handling of loading.
 /// Exceptions allow for easy abort across stack as soon as the first error appears.
@@ -311,133 +376,5 @@ inline auto bounding_sphere(scene const& s) noexcept {
 
   return std::tuple{center, radius};
 }
-
-// struct scene {
-//   using size_type = uint32;
-//   static constexpr size_type invalid = -1;
-
-//   using real = float32;
-
-//   struct vertex {
-//     vec3 position;
-//     vec3 normal;
-//   };
-//   using vertex_index = size_type;
-
-//   using face = array<vertex_index, 3>;
-//   // struct face : array<vertex_index, 3> {
-//   //   using base = array<vertex_index, 3>;
-//   //   using base::base;
-//   // };
-//   using face_index = size_type;
-
-//   struct edge : array<vertex_index, 2> {
-//     struct info {
-//       face_index face;
-//     };
-
-//     struct hasher {
-//       auto operator()(const edge& e) const noexcept -> size_t {
-//         return (size_t(e[0]) << 7) ^ size_t(e[1]);
-//       }
-//     };
-//   };
-
-//   vector<vertex> vertices{};
-//   vector<face> faces{};
-
-//   unordered_map<edge, edge::info, edge::hasher> edges{};
-//   vector<vertex_index> neighbor_offsets{};
-//   vector<vertex_index> neighbors{};
-
-//   vector<vec4> smoothed_normals{};
-
-//   void generate_edges() {
-//     edges.clear();
-//     for (size_t i = 0; i < faces.size(); ++i) {
-//       const auto& f = faces[i];
-//       edges[edge{f[0], f[1]}].face = i;
-//       edges[edge{f[1], f[2]}].face = i;
-//       edges[edge{f[2], f[0]}].face = i;
-//     }
-
-//     neighbor_offsets.assign(vertices.size() + 1, 0);
-//     for (const auto& [e, _] : edges) {
-//       const auto vid = e[0];
-//       const auto nid = e[1];
-//       ++neighbor_offsets[vid];
-//     }
-//     for (size_type i = 0; i < vertices.size(); ++i)
-//       neighbor_offsets[i + 1] += neighbor_offsets[i];
-//     neighbors.resize(neighbor_offsets.back());
-//     for (const auto& [e, _] : edges) {
-//       const auto vid = e[0];
-//       const auto nid = e[1];
-//       neighbors[--neighbor_offsets[vid]] = nid;
-//     }
-//   }
-
-//   void smooth_normals(size_type scales) {
-//     smoothed_normals.resize(vertices.size() * scales);
-//     for (vertex_index vid = 0; vid < vertices.size(); ++vid) {
-//       auto n = vertices[vid].normal;
-//       for (auto k = neighbor_offsets[vid]; k < neighbor_offsets[vid + 1]; ++k)
-//         n += vertices[neighbors[k]].normal;
-//       smoothed_normals[vid] = vec4(normalize(n), 0.0);
-//     }
-//     for (int i = 1; i < scales; ++i) {
-//       const auto offset = i * vertices.size();
-//       const auto offset_1 = (i - 1) * vertices.size();
-//       for (vertex_index vid = 0; vid < vertices.size(); ++vid) {
-//         auto n = smoothed_normals[offset_1 + vid];
-//         for (auto k = neighbor_offsets[vid]; k < neighbor_offsets[vid + 1]; ++k)
-//           n += smoothed_normals[offset_1 + neighbors[k]];
-//         smoothed_normals[offset + vid] = normalize(n);
-//       }
-//     }
-//   }
-// };
-
-// auto scene_from(const filesystem::path& path) -> scene;
-
-// inline auto scene_from(const stl_surface& stl) -> scene {
-//   scene s{};
-//   s.vertices.reserve(stl.triangles.size() * 3);
-//   s.faces.reserve(stl.triangles.size());
-//   for (const auto& t : stl.triangles) {
-//     s.vertices.emplace_back(t.vertex[0], t.normal);
-//     s.vertices.emplace_back(t.vertex[1], t.normal);
-//     s.vertices.emplace_back(t.vertex[2], t.normal);
-
-//     const auto n = static_cast<scene::vertex_index>(s.vertices.size());
-//     s.faces.push_back({n - 3, n - 2, n - 1});
-//   }
-//   return s;
-// }
-
-// inline auto aabb_from(const scene& s) noexcept -> aabb3 {
-//   aabb3 result{};
-//   for (const auto& v : s.vertices) result = aabb{result, v.position};
-//   return result;
-// }
-
-// inline auto center(const scene& s) noexcept {
-//   vec3 result{};
-//   for (const auto& v : s.vertices) result += v.position;
-//   return result /= s.vertices.size();
-// }
-
-// inline auto bounding_radius(const scene& s, vec3 center) noexcept {
-//   real radius{};
-//   for (const auto& v : s.vertices)
-//     radius = std::max(radius, distance(center, v.position));
-//   return radius;
-// }
-
-// inline auto bounding_sphere(const scene& s) noexcept {
-//   const auto m = center(s);
-//   const auto r = bounding_radius(s, m);
-//   return std::tuple{m, r};
-// }
 
 }  // namespace demo

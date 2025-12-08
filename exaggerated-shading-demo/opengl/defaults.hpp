@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstdint>
 #include <filesystem>
+#include <generator>
 #include <numbers>
 #include <print>
 #include <ranges>
@@ -312,11 +313,17 @@ template <typename type>
 concept string_range = std::ranges::input_range<type> &&
                        string_like<std::ranges::range_value_t<type>>;
 
+static_assert(string_range<std::generator<std::string>>);
+
 template <typename type>
 concept stable_string_range =
     string_range<type> &&
     (std::ranges::borrowed_range<std::ranges::range_value_t<type>> ||
-     std::is_reference_v<std::ranges::range_reference_t<type>>);
+     std::is_lvalue_reference_v<std::ranges::range_reference_t<type>>);
+
+void print(string_range auto&& lines) {
+  for (auto&& str : lines) std::println("{}", std::forward<decltype(str)>(str));
+}
 
 ///
 ///

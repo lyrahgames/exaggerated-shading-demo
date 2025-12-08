@@ -73,7 +73,14 @@ void viewer::init_lua() {
         return out;
       }),                                                                    //
       "min_edge_length", [](scene const& s) { return min_edge_length(s); },  //
-      "print", [](scene const& s) { print(s); },                             //
+      // "print", [](scene const& s) { print(s); },                             //
+      "print_mesh_list", [](scene const& s) { s.print_mesh_list(); },  //
+      "print_material_list",
+      [](scene const& s) { s.print_material_list(); },                       //
+      "print_texture_list", [](scene const& s) { s.print_texture_list(); },  //
+      "print_animation_list",
+      [](scene const& s) { s.print_animation_list(); },                //
+      "print_hierarchy", [](scene const& s) { s.print_hierarchy(); },  //
       "animate",
       [this](struct scene const& scene, int aid, double time) {
         bone_transforms =

@@ -370,113 +370,164 @@ auto scene_from(std::filesystem::path const& path) -> scene {
   return out;
 }
 
-static void print_meshes(struct scene const& scene) {
-  if (not scene.meshes.empty()) {
-    const auto size = scene.meshes.size();
-    const auto id_width = static_cast<int>(
-        std::ceil(std::log10(static_cast<scene::real>(size + 1))));
-    fmt::print(fmt::emphasis::bold, "Meshes:\n");
-    for (size_t i = 0; i < scene.meshes.size() - 1; ++i) {
-      const auto& mesh = scene.meshes[i];
-      fmt::println("├─◬ {:>{}}: {}", i, id_width, mesh.name);
-      fmt::println("│   material = {}: {}", mesh.material,
-                   scene.materials[mesh.material].name);
-      fmt::println("│   #v = {:>8}", mesh.vertices.size());
-      fmt::println("│   #f = {:>8}", mesh.faces.size());
-    }
-    {
-      const auto& mesh = scene.meshes.back();
-      fmt::println("└─◬ {:>{}}: {}", scene.meshes.size() - 1, id_width,
-                   mesh.name);
-      fmt::println("    material = {}: {}", mesh.material,
-                   scene.materials[mesh.material].name);
-      fmt::println("    #v = {:>8}", mesh.vertices.size());
-      fmt::println("    #f = {:>8}", mesh.faces.size());
-    }
-    fmt::println("");
-  }
+auto scene::info(struct mesh const& mesh) const -> std::generator<std::string> {
+  co_yield fmt::format("{}", (mesh.name.empty()) ? "<empty>" : mesh.name);
+  co_yield fmt::format(fmt::fg(fmt::color::gray), "material  = {}: {}",
+                       mesh.material, materials[mesh.material].name);
+  co_yield fmt::format(fmt::fg(fmt::color::gray), "#vertices = {:>8}",
+                       mesh.vertices.size());
+  co_yield fmt::format(fmt::fg(fmt::color::gray), "#faces    = {:>8}",
+                       mesh.faces.size());
 }
 
-static void print_materials(struct scene const& scene) {
-  if (scene.materials.empty()) return;
-  const auto size = scene.materials.size();
-  const auto id_width = static_cast<int>(
-      std::ceil(std::log10(static_cast<scene::real>(size + 1))));
-  fmt::print(fmt::emphasis::bold, "Materials:\n");
-  for (size_t i = 0; i < scene.materials.size() - 1; ++i) {
-    auto const& material = scene.materials[i];
-    fmt::println("├─◍ {:>{}}: {}", i, id_width, material.name);
-    fmt::println("│   ambient    = {}", material.ambient);
-    fmt::println("│   diffuse    = {}", material.diffuse);
-    fmt::println("│   specular   = {}", material.specular);
-    fmt::println("│   shininess  = {}", material.shininess);
-    fmt::println("│   albedo map = {}: {}", material.albedo_map,
-                 scene.textures[material.albedo_map]);
-    fmt::println("│   normal map = {}: {}", material.normal_map,
-                 scene.textures[material.normal_map]);
-    fmt::println("│   metal map  = {}: {}", material.orm_map,
-                 scene.textures[material.orm_map]);
-  }
-  {
-    auto const& material = scene.materials.back();
-    fmt::println("└─◍ {:>{}}: {}", scene.materials.size() - 1, id_width,
-                 material.name);
-    fmt::println("    ambient    = {}", material.ambient);
-    fmt::println("    diffuse    = {}", material.diffuse);
-    fmt::println("    specular   = {}", material.specular);
-    fmt::println("    shininess  = {}", material.shininess);
-    fmt::println("    albedo map = {}: {}", material.albedo_map,
-                 scene.textures[material.albedo_map]);
-    fmt::println("    normal map = {}: {}", material.normal_map,
-                 scene.textures[material.normal_map]);
-    fmt::println("    metal map  = {}: {}", material.orm_map,
-                 scene.textures[material.orm_map]);
-  }
-  fmt::println("");
+auto scene::info(struct material const& material) const
+    -> std::generator<std::string> {
+  co_yield fmt::format("{}",
+                       (material.name.empty()) ? "<empty>" : material.name);
+  if (material.albedo_map)
+    co_yield fmt::format(fmt::fg(fmt::color::gray), "albedo map = {}: {}",
+                         material.albedo_map, textures[material.albedo_map]);
+  if (material.normal_map)
+    co_yield fmt::format(fmt::fg(fmt::color::gray), "normal map = {}: {}",
+                         material.normal_map, textures[material.normal_map]);
+  if (material.orm_map)
+    co_yield fmt::format(fmt::fg(fmt::color::gray), "ORM map    = {}: {}",
+                         material.orm_map, textures[material.orm_map]);
 }
 
-static void pretty_print_node(struct scene const& scene,
-                              scene::node const& node,
-                              std::string const& prefix,
-                              std::string const& child_prefix) {
-  fmt::println("{}☋ {}: {}: {}", prefix, node.index, node.name,
-               fmt::format(fmt::fg(fmt::color::gray), "{} ◬, {} ↣",
-                           node.meshes.size(), node.bone_entries.size()));
+auto scene::info(std::filesystem::path const& texture) const
+    -> std::generator<std::string> {
+  co_yield fmt::format("{}", texture.string());
+}
 
-  auto property_prefix = child_prefix;
-  if (node.children.empty())
-    property_prefix += "  ";
-  else
-    property_prefix += "│ ";
+auto scene::info(struct animation const& animation) const
+    -> std::generator<std::string> {
+  co_yield fmt::format("☋ {}", animation.name);
+  co_yield fmt::format("☋ {}x{}", animation.duration, animation.ticks);
+  // fmt::print(fmt::emphasis::bold, "Animations:\n");
+  // for (auto& anim : scene.animations) {
+  //   fmt::println("  ☋ {}", anim.name);
+  //   fmt::println("  time = {}", anim.duration);
+  //   fmt::println("  tick = {}", anim.ticks);
+  //   fmt::println("  Channels:");
+  //   for (auto& channel : anim.channels)
+  //     fmt::println("    {} ({},{},{})",  //
+  //                  channel.node_name,    //
+  //                  channel.positions.size(), channel.rotations.size(),
+  //                  channel.scalings.size());
+}
+
+auto scene::info(struct node const& node) const -> std::generator<std::string> {
+  co_yield fmt::format(
+      "{}: {}", (node.name.empty()) ? "<empty>" : node.name,
+      fmt::format(fmt::fg(fmt::color::gray), "{} ◬, {} ↣", node.meshes.size(),
+                  node.bone_entries.size()));
 
   for (auto mid : node.meshes)
-    fmt::println("{}{}", property_prefix,
-                 fmt::format(fmt::fg(fmt::color::gray), "◬ {}: {}", mid,
-                             scene.meshes[mid].name));
+    co_yield fmt::format("{}{}", (node.children.empty()) ? "  " : "│ ",
+                         fmt::format(fmt::fg(fmt::color::gray), "◬ {}: {}", mid,
+                                     meshes[mid].name));
 
   for (auto [mid, weights] : node.bone_entries) {
     if (weights.empty()) continue;
-    fmt::println("{}{}", property_prefix,
-                 fmt::format(fmt::fg(fmt::color::gray), "↣ ◬ {}: {} ({})", mid,
-                             scene.meshes[mid].name, weights.size()));
+    co_yield fmt::format(
+        "{}{}", (node.children.empty()) ? "  " : "│ ",
+        fmt::format(fmt::fg(fmt::color::gray), "↣ ◬ {}: {} ({})", mid,
+                    meshes[mid].name, weights.size()));
   }
 
-  auto it = node.children.begin();
-  if (it == node.children.end()) return;
-  auto next = it;
-  ++next;
-  for (; next != node.children.end(); ++next) {
-    pretty_print_node(scene, *it, child_prefix + "├─", child_prefix + "│ ");
-    it = next;
-  }
-  pretty_print_node(scene, *it, child_prefix + "└─", child_prefix + "  ");
+  for (auto&& str : list_info(node.children, "☋")) co_yield str;
 }
 
-static void print_hierarchy(struct scene const& scene) {
-  fmt::print(fmt::emphasis::bold, "Hierarchy:\n");
-  pretty_print_node(scene, scene.root, "", "");
-  fmt::println("");
+auto scene::mesh_list_info() const -> std::generator<std::string> {
+  co_yield fmt::format(fmt::emphasis::bold, "Meshes:");
+  for (auto&& str : list_info(meshes, "◬"))
+    co_yield std::forward<decltype(str)>(str);
 }
+
+auto scene::material_list_info() const -> std::generator<std::string> {
+  co_yield fmt::format(fmt::emphasis::bold, "Materials:");
+  for (auto&& str : list_info(materials, "◍"))
+    co_yield std::forward<decltype(str)>(str);
+}
+
+auto scene::texture_list_info() const -> std::generator<std::string> {
+  co_yield fmt::format(fmt::emphasis::bold, "Textures:");
+  for (auto&& str : list_info(textures, "▧"))
+    co_yield std::forward<decltype(str)>(str);
+}
+
+auto scene::animation_list_info() const -> std::generator<std::string> {
+  co_yield fmt::format(fmt::emphasis::bold, "Animations:");
+  for (auto&& str : list_info(animations, "⏯"))
+    co_yield std::forward<decltype(str)>(str);
+}
+
+auto scene::hierarchy_info() const -> std::generator<std::string> {
+  co_yield fmt::format(fmt::emphasis::bold, "Hierarchy:");
+  for (auto&& str : list_info(std::views::single(root))) co_yield str;
+}
+
+static void print(std::generator<std::string> lines) {
+  for (auto&& str : lines) std::println("{}", std::forward<decltype(str)>(str));
+}
+
+void scene::print_mesh_list() const {
+  print(mesh_list_info());
+}
+
+void scene::print_material_list() const {
+  print(material_list_info());
+}
+
+void scene::print_texture_list() const {
+  print(texture_list_info());
+}
+
+void scene::print_animation_list() const {
+  print(animation_list_info());
+}
+
+void scene::print_hierarchy() const {
+  print(hierarchy_info());
+}
+
+// static void pretty_print_node(struct scene const& scene,
+//                               scene::node const& node,
+//                               std::string const& prefix,
+//                               std::string const& child_prefix) {
+//   fmt::println("{}☋ {}: {}: {}", prefix, node.index, node.name,
+//                fmt::format(fmt::fg(fmt::color::gray), "{} ◬, {} ↣",
+//                            node.meshes.size(), node.bone_entries.size()));
+
+//   auto property_prefix = child_prefix;
+//   if (node.children.empty())
+//     property_prefix += "  ";
+//   else
+//     property_prefix += "│ ";
+
+//   for (auto mid : node.meshes)
+//     fmt::println("{}{}", property_prefix,
+//                  fmt::format(fmt::fg(fmt::color::gray), "◬ {}: {}", mid,
+//                              scene.meshes[mid].name));
+
+//   for (auto [mid, weights] : node.bone_entries) {
+//     if (weights.empty()) continue;
+//     fmt::println("{}{}", property_prefix,
+//                  fmt::format(fmt::fg(fmt::color::gray), "↣ ◬ {}: {} ({})", mid,
+//                              scene.meshes[mid].name, weights.size()));
+//   }
+
+//   auto it = node.children.begin();
+//   if (it == node.children.end()) return;
+//   auto next = it;
+//   ++next;
+//   for (; next != node.children.end(); ++next) {
+//     pretty_print_node(scene, *it, child_prefix + "├─", child_prefix + "│ ");
+//     it = next;
+//   }
+//   pretty_print_node(scene, *it, child_prefix + "└─", child_prefix + "  ");
+// }
 
 static void print_animations(struct scene const& scene) {
   fmt::print(fmt::emphasis::bold, "Animations:\n");
@@ -493,116 +544,5 @@ static void print_animations(struct scene const& scene) {
     fmt::println("");
   }
 }
-
-void print(struct scene const& scene) {
-  fmt::println("Scene: {}", scene.name);
-  print_meshes(scene);
-  print_materials(scene);
-  // print_hierarchy(scene);
-  // print_animations(scene);
-}
-
-// auto scene_from(const filesystem::path& path) -> scene {
-//   // Generate functor for prefixed error messages.
-//   //
-//   const auto throw_error = [&](czstring str) {
-//     throw runtime_error("Failed to load 'polyhedral_surface' from path '"s +
-//                         path.string() + "'. " + str);
-//   };
-
-//   if (!exists(path)) throw_error("The path does not exist.");
-
-//   Assimp::Importer importer{};
-
-//   // Assimp only needs to generate a continuously connected scene.
-//   // So, a lot of information can be stripped from vertices.
-//   //
-//   importer.SetPropertyInteger(
-//       AI_CONFIG_PP_RVC_FLAGS,
-//       /*aiComponent_NORMALS |*/ aiComponent_TANGENTS_AND_BITANGENTS |
-//           aiComponent_COLORS |
-//           /*aiComponent_TEXCOORDS |*/ aiComponent_BONEWEIGHTS |
-//           aiComponent_ANIMATIONS | aiComponent_TEXTURES | aiComponent_LIGHTS |
-//           aiComponent_CAMERAS /*| aiComponent_MESHES*/ | aiComponent_MATERIALS);
-
-//   // After the stripping and loading,
-//   // certain post processing steps are mandatory.
-//   //
-//   const auto post_processing =
-//       aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals |
-//       aiProcess_JoinIdenticalVertices | aiProcess_RemoveComponent |
-//       /*aiProcess_OptimizeMeshes |*/ /*aiProcess_OptimizeGraph |*/
-//       aiProcess_FindDegenerates /*| aiProcess_DropNormals*/;
-
-//   // Now, let Assimp actually load a scene scene from the given file.
-//   //
-//   const auto input = importer.ReadFile(path.c_str(), post_processing);
-
-//   // Check whether Assimp could load the file at all.
-//   //
-//   if (!input || input->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !input->mRootNode)
-//     throw_error("Assimp could not process the file.");
-
-//   // Now, transform the loaded mesh data from
-//   // Assimp's internal structure to a polyhedral scene.
-//   //
-//   struct scene scene{};
-
-//   // First, get the total number of vertices
-//   // and faces and for all meshes.
-//   //
-//   size_t vertex_count = 0;
-//   size_t face_count = 0;
-//   for (size_t i = 0; i < input->mNumMeshes; ++i) {
-//     vertex_count += input->mMeshes[i]->mNumVertices;
-//     face_count += input->mMeshes[i]->mNumFaces;
-//   }
-//   //
-//   scene.vertices.resize(vertex_count);
-//   scene.faces.resize(face_count);
-
-//   // Iterate over all meshes and get the vertex and face information.
-//   // All meshes will be linearly stored in one polyhedral scene.
-//   //
-//   uint32 vertex_offset = 0;
-//   uint32 face_offset = 0;
-//   for (size_t mid = 0; mid < input->mNumMeshes; ++mid) {
-//     // Vertices of the Mesh
-//     //
-//     for (size_t vid = 0; vid < input->mMeshes[mid]->mNumVertices; ++vid) {
-//       scene.vertices[vid + vertex_offset] = {
-//           .position = {input->mMeshes[mid]->mVertices[vid].x,  //
-//                        input->mMeshes[mid]->mVertices[vid].y,  //
-//                        input->mMeshes[mid]->mVertices[vid].z},
-//           .normal = {input->mMeshes[mid]->mNormals[vid].x,  //
-//                      input->mMeshes[mid]->mNormals[vid].y,  //
-//                      input->mMeshes[mid]->mNormals[vid].z}};
-//     }
-
-//     // Faces of the Mesh
-//     //
-//     for (size_t fid = 0; fid < input->mMeshes[mid]->mNumFaces; ++fid) {
-//       // All faces need to be triangles.
-//       // So, use a simple triangulation of polygons.
-//       const auto corners = input->mMeshes[mid]->mFaces[fid].mNumIndices;
-//       for (size_t k = 2; k < corners; ++k) {
-//         scene.faces[face_offset + fid] = {
-//             input->mMeshes[mid]->mFaces[fid].mIndices[0] + vertex_offset,  //
-//             input->mMeshes[mid]->mFaces[fid].mIndices[k - 1] +
-//                 vertex_offset,  //
-//             input->mMeshes[mid]->mFaces[fid].mIndices[k] + vertex_offset};
-//       }
-//     }
-
-//     // Update offsets to not overwrite previously written meshes.
-//     //
-//     vertex_offset += input->mMeshes[mid]->mNumVertices;
-//     face_offset += input->mMeshes[mid]->mNumFaces;
-//   }
-
-//   scene.generate_edges();
-//   scene.smooth_normals(10);
-//   return scene;
-// }
 
 }  // namespace demo

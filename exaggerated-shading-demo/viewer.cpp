@@ -88,6 +88,8 @@ void viewer::show(struct scene const& scene) {
 
   world.move_to(m);
   cam.fit(world, r);
+  render_cam.fit(world, r);
+  undo_cam = cam;
 
   primitives.clear();
   for (size_t mid = 0; auto& mesh : scene.meshes) {
@@ -341,6 +343,18 @@ void viewer::process_events() {
       }
       if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
       } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
+        if (not camera_animation) {
+          if (cam == render_cam) {
+            camera_animation = std::make_optional<camera_switch_animation>(
+                std::chrono::high_resolution_clock::now(), 0.8, cam, undo_cam,
+                &cam);
+          } else {
+            undo_cam = cam;
+            camera_animation = std::make_optional<camera_switch_animation>(
+                std::chrono::high_resolution_clock::now(), 0.8, cam, render_cam,
+                &cam);
+          }
+        }
       }
     } else if (const auto* keyReleased =
                    event->getIf<sf::Event::KeyReleased>()) {
@@ -355,6 +369,10 @@ void viewer::process_events() {
         case sf::Mouse::Button::Right:
           trackball = bell_trackball_interaction{cam, screen.space(mouse)};
           break;
+        case sf::Mouse::Button::Middle:
+          cam_interpolation = mouse;
+          undo_cam = cam;
+          break;
       }
     } else if (const auto* mouse_event =
                    event->getIf<sf::Event::MouseButtonReleased>()) {
@@ -364,6 +382,9 @@ void viewer::process_events() {
           break;
         case sf::Mouse::Button::Right:
           trackball = {};
+          break;
+        case sf::Mouse::Button::Middle:
+          cam_interpolation = {};
           break;
       }
     }
@@ -386,6 +407,22 @@ void viewer::process_events() {
           std::invoke(action, cam, screen.space(mouse));
         },
         trackball.value());
+
+  if (cam_interpolation) {
+    const float delta = (mouse - cam_interpolation.value()).y;
+    cam_interpolate = std::clamp(0.01f * delta, 0.0f, 1.0f);
+    const auto d1 = distance(undo_cam.focus, undo_cam.translation);
+    const auto d2 = distance(render_cam.focus, render_cam.translation);
+    const auto d = std::lerp(d1, d2, cam_interpolate);
+    cam.focus = mix(undo_cam.focus, render_cam.focus, cam_interpolate);
+    cam.orientation =
+        slerp(undo_cam.orientation, render_cam.orientation, cam_interpolate);
+    cam.translation = cam.focus + d * cam.out();
+  }
+
+  if (camera_animation)
+    if (camera_animation->update(std::chrono::high_resolution_clock::now()))
+      camera_animation = {};
 }
 
 void viewer::render() {

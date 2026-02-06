@@ -7,6 +7,13 @@ struct frame {
   quat orientation{1.0, 0.0, 0.0, 0.0};
   vec3 translation{};
 
+  friend constexpr bool operator==(auto const& x, auto const& y) noexcept {
+    return (x.orientation == y.orientation) && (x.translation == y.translation);
+  }
+  friend constexpr bool operator!=(auto const& x, auto const& y) noexcept {
+    return !(x == y);
+  }
+
   constexpr auto right() const noexcept { return mat3_cast(orientation)[0]; }
   constexpr auto up() const noexcept { return mat3_cast(orientation)[1]; }
   constexpr auto out() const noexcept { return mat3_cast(orientation)[2]; }

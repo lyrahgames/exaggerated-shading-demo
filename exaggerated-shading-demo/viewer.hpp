@@ -26,6 +26,35 @@ class viewer : public opengl_window {
   opengl::viewport screen{};
   opengl::frame world{};
   opengl::perspective_camera cam{};
+  opengl::perspective_camera undo_cam{};
+  opengl::perspective_camera render_cam{};
+  std::optional<vec2> cam_interpolation{};
+  float cam_interpolate = 0.0f;
+
+  struct camera_switch_animation {
+    using time_point =
+        std::chrono::time_point<std::chrono::high_resolution_clock>;
+    time_point start;
+    float duration;
+    opengl::perspective_camera first;
+    opengl::perspective_camera last;
+    opengl::perspective_camera* camera;
+
+    constexpr bool update(time_point time) noexcept {
+      const auto s = std::clamp(
+          std::chrono::duration<float>(time - start).count() / duration,  //
+          0.0f, 1.0f);
+      const auto t = 3 * s * s - 2 * s * s * s;
+      const auto d1 = distance(first.focus, first.translation);
+      const auto d2 = distance(last.focus, last.translation);
+      const auto d = std::lerp(d1, d2, t);
+      camera->focus = mix(first.focus, last.focus, t);
+      camera->orientation = slerp(first.orientation, last.orientation, t);
+      camera->translation = camera->focus + d * camera->out();
+      return s == 1.0f;
+    }
+  };
+  std::optional<camera_switch_animation> camera_animation{};
 
   struct scene_metric {
     vec3 center{};

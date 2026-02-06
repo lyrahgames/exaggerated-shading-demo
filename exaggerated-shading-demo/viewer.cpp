@@ -342,16 +342,17 @@ void viewer::process_events() {
           done = true;
       }
       if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
+        render_cam = cam;
       } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
         if (not camera_animation) {
           if (cam == render_cam) {
             camera_animation = std::make_optional<camera_switch_animation>(
-                std::chrono::high_resolution_clock::now(), 0.8, cam, undo_cam,
-                &cam);
+                std::chrono::high_resolution_clock::now(), 0.5, render_cam,
+                undo_cam, &cam);
           } else {
             undo_cam = cam;
             camera_animation = std::make_optional<camera_switch_animation>(
-                std::chrono::high_resolution_clock::now(), 0.8, cam, render_cam,
+                std::chrono::high_resolution_clock::now(), 0.5, cam, render_cam,
                 &cam);
           }
         }

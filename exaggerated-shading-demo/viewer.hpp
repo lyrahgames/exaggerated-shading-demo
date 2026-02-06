@@ -44,6 +44,15 @@ class viewer : public opengl_window {
       const auto s = std::clamp(
           std::chrono::duration<float>(time - start).count() / duration,  //
           0.0f, 1.0f);
+      // branches needed for numerical stability and equality preservation
+      if (s >= 1.0f) {
+        *camera = last;
+        return true;
+      }
+      if (s <= 0.0f) {
+        *camera = first;
+        return false;
+      }
       const auto t = 3 * s * s - 2 * s * s * s;
       const auto d1 = distance(first.focus, first.translation);
       const auto d2 = distance(last.focus, last.translation);
@@ -51,7 +60,7 @@ class viewer : public opengl_window {
       camera->focus = mix(first.focus, last.focus, t);
       camera->orientation = slerp(first.orientation, last.orientation, t);
       camera->translation = camera->focus + d * camera->out();
-      return s == 1.0f;
+      return false;
     }
   };
   std::optional<camera_switch_animation> camera_animation{};

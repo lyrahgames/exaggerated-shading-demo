@@ -42,7 +42,11 @@ struct frame {
   constexpr void repair() noexcept { orientation = normalize(orientation); }
 
   constexpr auto global() const noexcept -> mat4 {
-    return glm::translate(mat4_cast(orientation), translation);
+    // GLM seem to apply to right side (input).
+    // return glm::translate(mat4_cast(orientation), translation);
+    auto result = mat4_cast(orientation);
+    result[3] = vec4(translation, 1.0f);
+    return result;
   }
 
   constexpr auto global_direction(vec3 local) const noexcept {

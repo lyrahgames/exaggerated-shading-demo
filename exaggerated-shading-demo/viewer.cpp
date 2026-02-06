@@ -458,6 +458,14 @@ void viewer::render() {
   const real far = d + metric.radius;
   const auto projection = cam.projection(screen, near, far);
 
+  frame_points_shader->try_set("projection", projection);
+  frame_points_shader->try_set("view", cam.view());
+  const auto frame_scale = 0.1f * metric.radius;
+  frame_points_shader->try_set("frame",
+                               scale(render_cam.global(), vec3(frame_scale)));
+  frame_points_shader->shader.use();
+  glDrawArrays(GL_POINTS, 0, 7);
+
   shader->try_set("projection", projection);
   shader->try_set("view", cam.view());
   shader->try_set("screen_size", vec2(screen.size));

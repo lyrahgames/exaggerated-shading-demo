@@ -199,6 +199,13 @@ class viewer : public opengl_window {
                        opengl::fs("exaggerated-shading-demo/texture.fs.glsl"),
                    });
 
+  std::shared_ptr<opengl::program_target> frame_points_shader = build.target(
+      "frame.points",
+      {
+          opengl::vs("exaggerated-shading-demo/frame.points.vs.glsl"),
+          opengl::fs("exaggerated-shading-demo/frame.points.fs.glsl"),
+      });
+
  public:
   viewer(uint width = 500, uint height = 500);
 

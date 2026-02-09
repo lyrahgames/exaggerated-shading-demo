@@ -205,6 +205,13 @@ class viewer : public opengl_window {
           opengl::vs("exaggerated-shading-demo/frame.points.vs.glsl"),
           opengl::fs("exaggerated-shading-demo/frame.points.fs.glsl"),
       });
+  std::shared_ptr<opengl::program_target> frame_axes_shader = build.target(
+      "frame.axes",
+      {
+          opengl::vs("exaggerated-shading-demo/frame.axes.vs.glsl"),
+          opengl::gs("exaggerated-shading-demo/frame.axes.gs.glsl"),
+          opengl::fs("exaggerated-shading-demo/frame.axes.fs.glsl"),
+      });
 
  public:
   viewer(uint width = 500, uint height = 500);

@@ -16,7 +16,7 @@ const vec4 points[] = {
 };
 
 const vec4 colors[] = {
-  vec4(1.0, 1.0, 1.0, 1),
+  vec4(0.5, 0.5, 0.5, 1),
   vec4(1, 0.1, 0.1, 1),
   vec4(1, 0.1, 0.1, 1),
   vec4(0.0, 0.6, 0.3, 1),
@@ -25,15 +25,14 @@ const vec4 colors[] = {
   vec4(0.1, 0.3, 1, 1),
 };
 
-out vec4 color;
+flat out vec4 color;
 flat out int id;
-flat out int negative;
 
 void main() {
-  color = colors[gl_VertexID];
-  id = gl_VertexID;
-  gl_PointSize = 20.0;
-  if (id == 0) gl_PointSize = 20.0;
-  gl_Position = projection * view * frame * points[gl_VertexID];
-  negative = int(bool(gl_VertexID) && bool((gl_VertexID - 1) & 1));
+  id = (gl_VertexID >> 1) + 1;
+  uint vid = 0;
+  if (bool(gl_VertexID & 1)) vid = id;
+
+  color = colors[id];
+  gl_Position = projection * view * frame * points[vid];
 }

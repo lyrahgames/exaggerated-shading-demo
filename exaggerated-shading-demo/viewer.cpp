@@ -35,8 +35,9 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
 
   glEnable(GL_DEPTH_TEST);
   // glEnable(GL_MULTISAMPLE);
-  // glEnable(GL_POINT_SMOOTH);
-  // glEnable(GL_POINT_SPRITE);
+  glEnable(GL_POINT_SMOOTH);
+  glEnable(GL_POINT_SPRITE);
+  glEnable(GL_PROGRAM_POINT_SIZE);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glPointSize(10.0f);
@@ -458,9 +459,16 @@ void viewer::render() {
   const real far = d + metric.radius;
   const auto projection = cam.projection(screen, near, far);
 
+  // Render the rendering camera frame.
+  const auto frame_scale = 0.1f * metric.radius;
+  frame_axes_shader->try_set("projection", projection);
+  frame_axes_shader->try_set("view", cam.view());
+  frame_axes_shader->try_set("frame",
+                             scale(render_cam.global(), vec3(frame_scale)));
+  frame_axes_shader->shader.use();
+  glDrawArrays(GL_LINES, 0, 12);
   frame_points_shader->try_set("projection", projection);
   frame_points_shader->try_set("view", cam.view());
-  const auto frame_scale = 0.1f * metric.radius;
   frame_points_shader->try_set("frame",
                                scale(render_cam.global(), vec3(frame_scale)));
   frame_points_shader->shader.use();

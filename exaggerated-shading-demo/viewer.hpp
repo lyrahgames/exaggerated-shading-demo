@@ -16,12 +16,24 @@ struct opengl_window {
   opengl_window(uint width, uint height);
 };
 
+struct viewer_state {
+  struct studio_state {};
+  struct render_state {};
+  opengl::frame world{};
+  opengl::perspective_camera camera{};
+};
+
 class viewer : public opengl_window {
   bool done = false;
   bool waiting = false;
   bool lua_running = false;
   std::vector<std::filesystem::path> lua_live_paths{};
   sol::state lua{};
+
+  viewer_state init{};
+  viewer_state current{};
+  using modifier = std::function<void(viewer_state&)>;
+  std::list<modifier> modifiers{};
 
   opengl::viewport screen{};
   opengl::frame world{};
@@ -75,21 +87,33 @@ class viewer : public opengl_window {
   // interaction
   struct trackball_interaction {
     vec2 from;
+    vec2 to;
     opengl::frame init;
     constexpr trackball_interaction(opengl::camera_base const& camera,
                                     vec2 pos) noexcept
         : init{camera}, from{pos} {}
-    constexpr void operator()(opengl::camera_base& camera, vec2 to) noexcept {
+    constexpr void operator()(opengl::camera_base& camera, vec2 pos) noexcept {
+      to = pos;
+      camera.trackball(init, 2 * (to - from));
+    }
+
+    constexpr void operator()(opengl::camera_base& camera) const noexcept {
       camera.trackball(init, 2 * (to - from));
     }
   };
   struct bell_trackball_interaction {
     vec2 from;
+    vec2 to;
     opengl::frame init;
     constexpr bell_trackball_interaction(opengl::camera_base const& camera,
                                          vec2 pos) noexcept
         : init{camera}, from{pos} {}
-    constexpr void operator()(opengl::camera_base& camera, vec2 to) noexcept {
+    constexpr void operator()(opengl::camera_base& camera, vec2 pos) noexcept {
+      to = pos;
+      camera.bell_trackball(init, from, to);
+    }
+
+    constexpr void operator()(opengl::camera_base& camera) const noexcept {
       camera.bell_trackball(init, from, to);
     }
   };

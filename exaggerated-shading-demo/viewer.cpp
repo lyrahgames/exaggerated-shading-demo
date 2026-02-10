@@ -91,6 +91,11 @@ void viewer::show(struct scene const& scene) {
   cam.fit(world, r);
   render_cam.fit(world, r);
   undo_cam = cam;
+  //
+  current.world.move_to(m);
+  current.camera.fit(current.world, r);
+  modifiers.clear();
+  init = current;
 
   primitives.clear();
   for (size_t mid = 0; auto& mesh : scene.meshes) {
@@ -334,7 +339,12 @@ void viewer::process_events() {
       on_resize(resized->size.x, resized->size.y);
     else if (const auto* scrolled =
                  event->getIf<sf::Event::MouseWheelScrolled>()) {
-      cam.zoom(0.1 * scrolled->delta);
+      // cam.zoom(0.1 * scrolled->delta);
+      const auto scale = 0.1 * scrolled->delta;
+      // current.camera.zoom(scale);
+      modifiers.push_back(
+          [scale](viewer_state& state) { state.camera.zoom(scale); });
+      std::invoke(modifiers.back(), current);
     } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
       if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
         if (lua_running)
@@ -343,19 +353,25 @@ void viewer::process_events() {
           done = true;
       }
       if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
-        render_cam = cam;
+        render_cam = current.camera;
       } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
         if (not camera_animation) {
-          if (cam == render_cam) {
+          if (current.camera == render_cam) {
             camera_animation = std::make_optional<camera_switch_animation>(
                 std::chrono::high_resolution_clock::now(), 0.5, render_cam,
-                undo_cam, &cam);
+                undo_cam, &current.camera);
           } else {
-            undo_cam = cam;
+            undo_cam = current.camera;
             camera_animation = std::make_optional<camera_switch_animation>(
-                std::chrono::high_resolution_clock::now(), 0.5, cam, render_cam,
-                &cam);
+                std::chrono::high_resolution_clock::now(), 0.5, current.camera,
+                render_cam, &current.camera);
           }
+        }
+      } else if (keyPressed->scancode == sf::Keyboard::Scancode::Backspace) {
+        if (not modifiers.empty()) {
+          modifiers.pop_back();
+          current = init;
+          for (auto& mod : modifiers) std::invoke(mod, current);
         }
       }
     } else if (const auto* keyReleased =
@@ -366,28 +382,36 @@ void viewer::process_events() {
                    event->getIf<sf::Event::MouseButtonPressed>()) {
       switch (mouse_event->button) {
         case sf::Mouse::Button::Left:
-          trackball = trackball_interaction{cam, screen.space(mouse)};
+          trackball =
+              trackball_interaction{current.camera, screen.space(mouse)};
           break;
         case sf::Mouse::Button::Right:
-          trackball = bell_trackball_interaction{cam, screen.space(mouse)};
+          trackball =
+              bell_trackball_interaction{current.camera, screen.space(mouse)};
           break;
-        case sf::Mouse::Button::Middle:
-          cam_interpolation = mouse;
-          undo_cam = cam;
-          break;
+          // case sf::Mouse::Button::Middle:
+          //   cam_interpolation = mouse;
+          //   undo_cam = cam;
+          //   break;
       }
     } else if (const auto* mouse_event =
                    event->getIf<sf::Event::MouseButtonReleased>()) {
       switch (mouse_event->button) {
         case sf::Mouse::Button::Left:
-          trackball = {};
-          break;
         case sf::Mouse::Button::Right:
+          if (trackball)
+            std::visit(
+                [this](auto& action) {
+                  modifiers.push_back(
+                      [action](viewer_state& state) { action(state.camera); });
+                  std::invoke(modifiers.back(), current);
+                },
+                trackball.value());
           trackball = {};
           break;
-        case sf::Mouse::Button::Middle:
-          cam_interpolation = {};
-          break;
+          // case sf::Mouse::Button::Middle:
+          //   cam_interpolation = {};
+          //   break;
       }
     }
   }
@@ -406,21 +430,21 @@ void viewer::process_events() {
   if (trackball)
     std::visit(
         [this, mouse](auto& action) {
-          std::invoke(action, cam, screen.space(mouse));
+          std::invoke(action, current.camera, screen.space(mouse));
         },
         trackball.value());
 
-  if (cam_interpolation) {
-    const float delta = (mouse - cam_interpolation.value()).y;
-    cam_interpolate = std::clamp(0.01f * delta, 0.0f, 1.0f);
-    const auto d1 = distance(undo_cam.focus, undo_cam.translation);
-    const auto d2 = distance(render_cam.focus, render_cam.translation);
-    const auto d = std::lerp(d1, d2, cam_interpolate);
-    cam.focus = mix(undo_cam.focus, render_cam.focus, cam_interpolate);
-    cam.orientation =
-        slerp(undo_cam.orientation, render_cam.orientation, cam_interpolate);
-    cam.translation = cam.focus + d * cam.out();
-  }
+  // if (cam_interpolation) {
+  //   const float delta = (mouse - cam_interpolation.value()).y;
+  //   cam_interpolate = std::clamp(0.01f * delta, 0.0f, 1.0f);
+  //   const auto d1 = distance(undo_cam.focus, undo_cam.translation);
+  //   const auto d2 = distance(render_cam.focus, render_cam.translation);
+  //   const auto d = std::lerp(d1, d2, cam_interpolate);
+  //   cam.focus = mix(undo_cam.focus, render_cam.focus, cam_interpolate);
+  //   cam.orientation =
+  //       slerp(undo_cam.orientation, render_cam.orientation, cam_interpolate);
+  //   cam.translation = cam.focus + d * cam.out();
+  // }
 
   if (camera_animation)
     if (camera_animation->update(std::chrono::high_resolution_clock::now()))
@@ -452,30 +476,30 @@ void viewer::render() {
                    materials.buffer().native_handle());
   for (int i = 0; i < textures.size(); ++i) textures[i].bind_to_unit(i);
 
-  const auto d = distance(cam.origin(), metric.center);
+  const auto d = distance(current.camera.origin(), metric.center);
   const real near =
       std::max(d - metric.radius,
                std::max(10 * metric.min_length, metric.radius / 10000));
   const real far = d + metric.radius;
-  const auto projection = cam.projection(screen, near, far);
+  const auto projection = current.camera.projection(screen, near, far);
 
   // Render the rendering camera frame.
   const auto frame_scale = 0.1f * metric.radius;
   frame_axes_shader->try_set("projection", projection);
-  frame_axes_shader->try_set("view", cam.view());
+  frame_axes_shader->try_set("view", current.camera.view());
   frame_axes_shader->try_set("frame",
                              scale(render_cam.global(), vec3(frame_scale)));
   frame_axes_shader->shader.use();
   glDrawArrays(GL_LINES, 0, 12);
   frame_points_shader->try_set("projection", projection);
-  frame_points_shader->try_set("view", cam.view());
+  frame_points_shader->try_set("view", current.camera.view());
   frame_points_shader->try_set("frame",
                                scale(render_cam.global(), vec3(frame_scale)));
   frame_points_shader->shader.use();
   glDrawArrays(GL_POINTS, 0, 7);
 
   shader->try_set("projection", projection);
-  shader->try_set("view", cam.view());
+  shader->try_set("view", current.camera.view());
   shader->try_set("screen_size", vec2(screen.size));
   // shader->try_set("scales", (uint32)scales);
   // shader->try_set("count", GLuint(vertices.size()));

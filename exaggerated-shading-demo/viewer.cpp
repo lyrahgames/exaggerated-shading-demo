@@ -75,6 +75,14 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
   if (glCheckNamedFramebufferStatus(fbo.native_handle(), GL_FRAMEBUFFER) !=
       GL_FRAMEBUFFER_COMPLETE)
     std::println("ERROR: Incomplete Framebuffer");
+
+  current.actions.push([this](sf::Event const& event) {
+    if (event.is<sf::Event::Closed>()) done = true;
+  });
+  current.actions.push([this](sf::Event const& event) {
+    if (const auto* resized = event.getIf<sf::Event::Resized>())
+      on_resize(resized->size.x, resized->size.y);
+  });
 }
 
 void viewer::show(struct scene const& scene) {
@@ -272,12 +280,12 @@ void viewer::show(struct scene const& scene) {
 
 void viewer::run() {
   while (not done) {
-    watch();
     update();
   }
 }
 
 void viewer::update() {
+  watch();
   process_events();
   build.update();
   render();
@@ -285,9 +293,9 @@ void viewer::update() {
 }
 
 void viewer::eval_lua(std::string_view str) {
-  lua_running = true;
+  ++lua_level;
   const auto result = lua.safe_script(str, sol::script_pass_on_error);
-  lua_running = false;
+  --lua_level;
   if (not result.valid())
     std::println("ERROR:\n{}\n", sol::error{result}.what());
   waiting = false;
@@ -295,9 +303,9 @@ void viewer::eval_lua(std::string_view str) {
 
 void viewer::eval_lua_file(std::filesystem::path const& path) {
   scoped_chdir _{path.parent_path()};
-  lua_running = true;
+  ++lua_level;
   const auto result = lua.safe_script_file(path, sol::script_pass_on_error);
-  lua_running = false;
+  --lua_level;
   if (not result.valid())
     std::println("ERROR:\n{}\n", sol::error{result}.what());
   waiting = false;
@@ -333,21 +341,28 @@ void viewer::process_events() {
   const auto mouse = vec2(mouse_tmp.x, mouse_tmp.y);
 
   while (const auto event = window.pollEvent()) {
-    if (event->is<sf::Event::Closed>())
-      done = true;
-    else if (const auto* resized = event->getIf<sf::Event::Resized>())
-      on_resize(resized->size.x, resized->size.y);
-    else if (const auto* scrolled =
-                 event->getIf<sf::Event::MouseWheelScrolled>()) {
+    current.actions.run(event.value());
+
+    // if (event->is<sf::Event::Closed>())
+    //   done = true;
+    // else
+
+    // if (const auto* resized = event->getIf<sf::Event::Resized>())
+    //   on_resize(resized->size.x, resized->size.y);
+    // else
+
+    if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
       // cam.zoom(0.1 * scrolled->delta);
       const auto scale = 0.1 * scrolled->delta;
       // current.camera.zoom(scale);
       modifiers.push_back(
           [scale](viewer_state& state) { state.camera.zoom(scale); });
       std::invoke(modifiers.back(), current);
+      // camera_zoom =
+      //     camera_zoom_animation{scale, current.camera, &current.camera, 0.2f};
     } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
       if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
-        if (lua_running)
+        if (lua_level > 0)
           waiting = true;
         else
           done = true;
@@ -449,6 +464,9 @@ void viewer::process_events() {
   if (camera_animation)
     if (camera_animation->update(std::chrono::high_resolution_clock::now()))
       camera_animation = {};
+
+  if (camera_zoom)
+    if (camera_zoom->update()) camera_zoom = {};
 }
 
 void viewer::render() {

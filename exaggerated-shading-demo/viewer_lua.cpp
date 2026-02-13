@@ -49,6 +49,7 @@ void viewer::init_lua() {
   viewer_table["quit"] = [this] { done = true; };
   viewer_table["done"] = [this] { return done; };
   viewer_table["waiting"] = [this] { return waiting; };
+  viewer_table["lua_level"] = [this] { return lua_level; };
   viewer_table["update"] = [this] { update(); };
 
   lua["scene_from_file"] = [](std::string_view path) {

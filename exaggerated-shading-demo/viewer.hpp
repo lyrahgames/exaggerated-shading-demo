@@ -8,6 +8,8 @@
 #include "defaults.hpp"
 #include "fdm.hpp"
 #include "scene.hpp"
+//
+#include "basic_update_list.hpp"
 
 namespace demo {
 
@@ -16,17 +18,33 @@ struct opengl_window {
   opengl_window(uint width, uint height);
 };
 
+struct update_manager {
+  using updater = std::function<void()>;
+  std::map<std::string, updater> updates{};
+  constexpr void operator()() {
+    for (auto& [name, update] : updates) std::invoke(update);
+  }
+  constexpr void set(std::string_view name, auto&& f) {
+    updates[std::string{name}] = std::forward<decltype(f)>(f);
+  }
+  constexpr void set(auto&& f) { set("", std::forward<decltype(f)>(f)); }
+};
+
+static_assert(std::copyable<update_manager>);
+
 struct viewer_state {
-  struct studio_state {};
-  struct render_state {};
+  basic_update_list<sf::Event const&> actions{};
+
   opengl::frame world{};
   opengl::perspective_camera camera{};
 };
 
+static_assert(std::copyable<viewer_state>);
+
 class viewer : public opengl_window {
   bool done = false;
   bool waiting = false;
-  bool lua_running = false;
+  int lua_level = 0;
   std::vector<std::filesystem::path> lua_live_paths{};
   sol::state lua{};
 
@@ -76,6 +94,28 @@ class viewer : public opengl_window {
     }
   };
   std::optional<camera_switch_animation> camera_animation{};
+
+  struct camera_zoom_animation {
+    using clock = std::chrono::steady_clock;
+    using time_point = std::chrono::time_point<clock>;
+
+    float scale;
+    opengl::perspective_camera first;
+    opengl::perspective_camera* camera;
+    float duration = 1.0f;
+    time_point start = clock::now();
+
+    constexpr bool update(time_point time = clock::now()) noexcept {
+      const auto s = std::clamp(
+          0.0f, 1.0f,
+          std::chrono::duration<float>(time - start).count() / duration);
+      const auto t = 3 * s * s - 2 * s * s * s;
+      *camera = first;
+      camera->zoom(t * scale);
+      return s >= 1.0f;
+    }
+  };
+  std::optional<camera_zoom_animation> camera_zoom{};
 
   struct scene_metric {
     vec3 center{};

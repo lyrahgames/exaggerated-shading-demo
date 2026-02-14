@@ -34,6 +34,7 @@ static_assert(std::copyable<update_manager>);
 
 struct viewer_state {
   basic_update_list<sf::Event const&> actions{};
+  basic_update_list<> updates{};
 
   opengl::frame world{};
   opengl::perspective_camera camera{};
@@ -285,6 +286,112 @@ class viewer : public opengl_window {
 
   void show(struct scene const& scene);
   void run();
+
+  void quit() noexcept { done = true; }
+  void leave() noexcept {
+    if (lua_level > 0)
+      waiting = true;
+    else
+      quit();
+  }
+
+  void undo() {
+    if (modifiers.empty()) return;
+    modifiers.pop_back();
+    current = init;
+    for (auto& mod : modifiers) std::invoke(mod, current);
+  }
+  void redo() { std::println("Redo is not yet supported"); }
+
+  template <std::invocable<sf::Event::KeyPressed> signal>
+  struct keysig : signal {};
+  struct keymod {
+    bool alt{};
+    bool control{};
+    bool shift{};
+    bool system{};
+    friend constexpr auto operator+(keymod x, keymod y) noexcept {
+      return keymod{
+          x.alt || y.alt,
+          x.control || y.control,
+          x.shift || y.shift,
+          x.system || y.system,
+      };
+    }
+    friend constexpr auto operator<=>(keymod, keymod) noexcept = default;
+    friend constexpr bool operator==(sf::Event::KeyPressed key,
+                                     keymod mod) noexcept {
+      return (key.alt == mod.alt) && (key.control == mod.control) &&
+             (key.shift == mod.shift) && (key.system == mod.system);
+    }
+
+    template <std::invocable<sf::Event::KeyPressed> signal>
+    friend constexpr auto operator+(keymod mod, keysig<signal> sig) noexcept {
+      return [mod, sig = static_cast<signal>(sig)](sf::Event::KeyPressed key) {
+        return sig(key) && (key == mod);
+      };
+    }
+  };
+  static constexpr auto alt = keymod{true, false, false, false};
+  static constexpr auto ctrl = keymod{false, true, false, false};
+  static constexpr auto shift = keymod{false, false, true, false};
+  static constexpr auto system = keymod{false, false, false, true};
+
+  static constexpr auto esc = keysig{[](sf::Event::KeyPressed key) {
+    return key.scancode == sf::Keyboard::Scancode::Escape;
+  }};
+  static constexpr auto enter = keysig{[](sf::Event::KeyPressed key) {
+    return key.scancode == sf::Keyboard::Scancode::Enter;
+  }};
+  static constexpr auto space = keysig{[](sf::Event::KeyPressed key) {
+    return key.scancode == sf::Keyboard::Scancode::Space;
+  }};
+  static constexpr auto backspace = keysig{[](sf::Event::KeyPressed key) {
+    return key.scancode == sf::Keyboard::Scancode::Backspace;
+  }};
+  static constexpr auto z = keysig{[](sf::Event::KeyPressed key) {
+    return key.code == sf::Keyboard::Key::Z;
+  }};
+
+  template <std::invocable<sf::Event::KeyPressed> signal>
+  static constexpr auto keypress(keysig<signal> sig) noexcept {
+    return [sig](sf::Event const& event) {
+      if (const auto* key = event.getIf<sf::Event::KeyPressed>())
+        return sig(*key) && (*key == keymod{});
+      return false;
+    };
+  }
+
+  static constexpr auto keypress(
+      std::invocable<sf::Event::KeyPressed> auto sig) noexcept {
+    return [sig](sf::Event const& event) {
+      if (const auto* key = event.getIf<sf::Event::KeyPressed>())
+        return sig(*key);
+      return false;
+    };
+  }
+
+  static constexpr auto action(std::invocable<sf::Event const&> auto activation,
+                               std::invocable auto execution) {
+    return [activation, execution](sf::Event const& event) {
+      if (activation(event)) execution();
+    };
+  }
+
+  static constexpr auto keybinding(
+      std::invocable<sf::Event::KeyPressed> auto sig,
+      std::invocable auto exe) noexcept {
+    return action(keypress(sig), exe);
+  }
+
+  // bool esc_action(sf::Event const& event) noexcept {
+  //   if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
+  //     if (key->scancode == sf::Keyboard::Scancode::Escape) {
+  //       return not(key->alt && key->control && key->shift && key->system);
+  //     }
+  //   }
+  //   return false;
+  // }
 
  protected:
   void init_lua();

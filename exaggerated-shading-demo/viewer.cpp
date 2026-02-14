@@ -83,6 +83,30 @@ viewer::viewer(uint width, uint height) : opengl_window{width, height} {
     if (const auto* resized = event.getIf<sf::Event::Resized>())
       on_resize(resized->size.x, resized->size.y);
   });
+
+  // current.actions.push([this](sf::Event const& event) {
+  //   if (key_action(ctrl + esc)(event)) quit();
+  // });
+
+  current.actions.push(keybinding(esc, [this] { leave(); }));
+  current.actions.push(
+      keybinding(enter, [this] { render_cam = current.camera; }));
+  current.actions.push(keybinding(space, [this] {
+    if (not camera_animation) {
+      if (current.camera == render_cam) {
+        camera_animation = std::make_optional<camera_switch_animation>(
+            std::chrono::high_resolution_clock::now(), 0.5, render_cam,
+            undo_cam, &current.camera);
+      } else {
+        undo_cam = current.camera;
+        camera_animation = std::make_optional<camera_switch_animation>(
+            std::chrono::high_resolution_clock::now(), 0.5, current.camera,
+            render_cam, &current.camera);
+      }
+    }
+  }));
+  current.actions.push(keybinding(ctrl + z, [this] { undo(); }));
+  current.actions.push(keybinding(ctrl + shift + z, [this] { redo(); }));
 }
 
 void viewer::show(struct scene const& scene) {
@@ -285,6 +309,7 @@ void viewer::run() {
 }
 
 void viewer::update() {
+  current.updates.run();
   watch();
   process_events();
   build.update();
@@ -361,34 +386,36 @@ void viewer::process_events() {
       // camera_zoom =
       //     camera_zoom_animation{scale, current.camera, &current.camera, 0.2f};
     } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-      if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
-        if (lua_level > 0)
-          waiting = true;
-        else
-          done = true;
-      }
-      if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
-        render_cam = current.camera;
-      } else if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
-        if (not camera_animation) {
-          if (current.camera == render_cam) {
-            camera_animation = std::make_optional<camera_switch_animation>(
-                std::chrono::high_resolution_clock::now(), 0.5, render_cam,
-                undo_cam, &current.camera);
-          } else {
-            undo_cam = current.camera;
-            camera_animation = std::make_optional<camera_switch_animation>(
-                std::chrono::high_resolution_clock::now(), 0.5, current.camera,
-                render_cam, &current.camera);
-          }
-        }
-      } else if (keyPressed->scancode == sf::Keyboard::Scancode::Backspace) {
-        if (not modifiers.empty()) {
-          modifiers.pop_back();
-          current = init;
-          for (auto& mod : modifiers) std::invoke(mod, current);
-        }
-      }
+      // if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
+      //   if (lua_level > 0)
+      //     waiting = true;
+      //   else
+      //     done = true;
+      // }
+      // if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
+      //   render_cam = current.camera;
+      // } else
+      // if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
+      //   if (not camera_animation) {
+      //     if (current.camera == render_cam) {
+      //       camera_animation = std::make_optional<camera_switch_animation>(
+      //           std::chrono::high_resolution_clock::now(), 0.5, render_cam,
+      //           undo_cam, &current.camera);
+      //     } else {
+      //       undo_cam = current.camera;
+      //       camera_animation = std::make_optional<camera_switch_animation>(
+      //           std::chrono::high_resolution_clock::now(), 0.5, current.camera,
+      //           render_cam, &current.camera);
+      //     }
+      //   }
+      // } else
+      // if (keyPressed->scancode == sf::Keyboard::Scancode::Backspace) {
+      //   if (not modifiers.empty()) {
+      //     modifiers.pop_back();
+      //     current = init;
+      //     for (auto& mod : modifiers) std::invoke(mod, current);
+      //   }
+      // }
     } else if (const auto* keyReleased =
                    event->getIf<sf::Event::KeyReleased>()) {
       if (keyReleased->scancode == sf::Keyboard::Scancode::Space) {

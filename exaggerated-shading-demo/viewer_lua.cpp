@@ -46,11 +46,18 @@ void viewer::init_lua() {
   };
 
   auto viewer_table = lua["viewer"].get_or_create<sol::table>();
-  viewer_table["quit"] = [this] { done = true; };
+  // viewer_table["quit"] = [this] { done = true; };
+  viewer_table.set_function("quit", &viewer::quit, this);
   viewer_table["done"] = [this] { return done; };
   viewer_table["waiting"] = [this] { return waiting; };
   viewer_table["lua_level"] = [this] { return lua_level; };
   viewer_table["update"] = [this] { update(); };
+  viewer_table["add_update"] = [this](sol::function f) {
+    current.updates.push(f);
+  };
+  viewer_table["add_action"] = [this](sol::function f) {
+    current.actions.push(f);
+  };
 
   lua["scene_from_file"] = [](std::string_view path) {
     scene out{};
